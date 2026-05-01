@@ -1,46 +1,76 @@
 package main
 
 import (
+	// fmt is used to write simple text responses to HTTP clients.
 	"fmt"
+	// log is used for startup logging and fatal server errors.
 	"log"
+	// net/http provides the HTTP server, routing, and response utilities.
 	"net/http"
+	// time is used by /load to run a CPU busy loop for a fixed duration.
 	"time"
 )
 
-// isFailing is a simple in-memory flag that controls the behavior of /health.
-// false => service reports healthy, true => service reports unhealthy.
-// The /fail endpoint flips this flag to true to simulate an application failure.
+// isFailing is an in-memory flag that controls the health endpoint behavior.
+// false: service is healthy.
+// true: service is unhealthy.
+//
+// In Kubernetes terms, this value affects liveness-style behavior:
+// - /health can tell the platform the app is no longer healthy.
+// - /ready remains a readiness-style signal (currently always ready on Day 1/2).
+//
+// Note: this is intentionally simple for learning. In production, state is usually
+// managed more safely and often with synchronization primitives for concurrency.
 var isFailing = false
 
-// main registers all HTTP routes and starts the API server on port 8080.
-// For Day 1, we intentionally keep the server minimal and stateful so we can
-// test basic cloud-native behaviors such as health checks and failure handling.
+// main wires all routes and starts the HTTP server on port 8080.
+//
+// This service is intentionally small so you can clearly see cloud-native ideas:
+// - operational endpoints (/health and /ready)
+// - controlled failure simulation (/fail)
+// - controlled load simulation (/load)
+//
+// These patterns are common in Kubernetes workloads where orchestration depends
+// on endpoint signals to make restart and traffic-routing decisions.
 func main() {
-	// Home endpoint: quick status message to confirm the API is running.
+	// Home endpoint: quick confirmation that the process is running.
 	http.HandleFunc("/", homeHandler)
-	// Health endpoint: returns healthy/unhealthy depending on isFailing state.
+
+	// Health endpoint: liveness-style indicator.
+	// When this fails consistently in Kubernetes, pods may be restarted.
 	http.HandleFunc("/health", healthHandler)
-	// Readiness endpoint: indicates the app is ready to receive traffic.
+
+	// Readiness endpoint: readiness-style indicator.
+	// When this fails in Kubernetes, traffic can be temporarily stopped to this pod.
 	http.HandleFunc("/ready", readyHandler)
-	// Failure trigger endpoint: switches app into failure mode.
+
+	// Failure simulation endpoint: toggles app into failing mode.
 	http.HandleFunc("/fail", failHandler)
-	// Load endpoint: simulates CPU pressure for a short fixed duration.
+
+	// Load simulation endpoint: keeps CPU busy for a short period.
 	http.HandleFunc("/load", loadHandler)
 
 	log.Println("KubePulse API running on port 8080")
+
+	// Start the HTTP server and stop the process if startup/runtime fails.
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 // homeHandler handles GET /.
-// It is a simple landing endpoint used to verify the service process is alive.
+// It returns a human-readable message confirming the API is online.
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "KubePulse AWS is running")
 }
 
 // healthHandler handles GET /health.
-// This endpoint represents a liveness-style signal for monitoring systems.
-// If failure mode is active (isFailing == true), it returns HTTP 500.
-// Otherwise, it returns HTTP 200 with a healthy message.
+//
+// Why it matters in Kubernetes:
+// - This endpoint is commonly used by liveness probes.
+// - If it reports failures, Kubernetes can restart the container to recover.
+//
+// Behavior in this project:
+// - If isFailing == true, return HTTP 500 (unhealthy).
+// - Otherwise return HTTP 200 (healthy).
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if isFailing {
 		http.Error(w, "service unhealthy", http.StatusInternalServerError)
@@ -51,25 +81,40 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // readyHandler handles GET /ready.
-// This endpoint represents a readiness-style signal and currently returns ready
-// unconditionally for Day 1.
+//
+// Why it matters in Kubernetes:
+// - This endpoint is commonly used by readiness probes.
+// - Readiness controls whether a pod should receive traffic.
+//
+// Current behavior:
+// - Always returns "ready" for this early project phase.
+// - Later versions can include dependency checks (DB, cache, API reachability).
 func readyHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "ready")
 }
 
 // failHandler handles GET /fail.
-// It simulates a failure event by setting isFailing to true.
-// After this endpoint is called, /health will begin returning HTTP 500.
-// This helps test how monitoring and orchestration react to unhealthy services.
+//
+// This endpoint simulates an application failure by setting isFailing = true.
+// After this call, /health starts returning HTTP 500, which mimics a broken app
+// state and allows you to test monitoring, alerts, and orchestration behavior.
+//
+// Returning HTTP 500 here makes the failure activation explicit to callers.
 func failHandler(w http.ResponseWriter, r *http.Request) {
 	isFailing = true
 	http.Error(w, "failure mode activated", http.StatusInternalServerError)
 }
 
 // loadHandler handles GET /load.
-// It simulates CPU load by running a busy loop for about 5 seconds.
-// The loop repeatedly performs arithmetic work to keep the CPU active,
-// allowing local stress testing of the service under higher compute pressure.
+//
+// This endpoint simulates temporary CPU pressure by running a busy loop for
+// around 5 seconds. The repeated arithmetic operation is intentionally useless
+// work whose purpose is to consume CPU cycles.
+//
+// This helps test:
+// - service responsiveness under load
+// - future autoscaling behavior
+// - how probes behave during higher resource usage
 func loadHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
