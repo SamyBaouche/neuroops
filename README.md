@@ -1,105 +1,86 @@
-# KubePulse AWS
+# KubePulse AWS 🚀
 
-KubePulse AWS is a cloud-native reliability engineering project focused on building a self-healing application platform using Go, Docker, Kubernetes, Terraform, AWS, and GitHub Actions.
+KubePulse AWS is a cloud-native DevOps portfolio project that simulates how modern production systems behave under failure and load. It starts as a Go HTTP API, then evolves into a containerized and cloud-ready workload using Docker, Terraform, and AWS.
 
-Day 1 establishes the application foundation: a Go API that can intentionally simulate failure and CPU stress, packaged into a Docker container and executed locally.
+The project is designed to showcase practical Platform Engineering skills: observability-friendly endpoints, failure simulation, Infrastructure as Code, registry publishing, and operational troubleshooting.
 
-## Project Goal
+## 🎯 Project Goal
 
-The long-term goal of KubePulse AWS is to create a production-style system that can:
+Build a realistic self-healing system foundation that can:
 
-- Run as cloud-native workloads
-- Expose health and readiness signals
-- Detect unhealthy behavior automatically
-- Recover through orchestration policies (self-healing)
-- Be provisioned and deployed with Infrastructure as Code and CI/CD
+- Expose liveness and readiness signals for orchestration platforms.
+- Simulate failure and stress conditions in a controlled way.
+- Run consistently across local and cloud environments.
+- Provision cloud resources reproducibly with Terraform.
+- Support an eventual CI/CD and Kubernetes deployment workflow.
 
-In short, this project is a practical journey from a local service to an automated, resilient cloud platform.
+## 🧱 Tech Stack
 
-## Day 1 Scope
+- Go 1.22
+- Docker (multi-stage image build)
+- AWS CLI
+- Terraform
+- AWS ECR (Elastic Container Registry)
+- Git + GitHub
+- PowerShell (Windows)
 
-For Day 1, the following was implemented:
+## 🏗️ Architecture Overview
 
-- Built a Go HTTP API with these endpoints:
-  - /
-  - /health
-  - /ready
-  - /fail
-  - /load
-- Added failure simulation logic to intentionally make health checks fail
-- Added CPU load simulation logic to mimic high-resource pressure
-- Containerized the application with Docker (multi-stage build)
-- Built and ran the container locally on Windows using PowerShell
+Current architecture (Day 1 and Day 2 scope):
 
-## Architecture Overview (Day 1)
+1. A Go API exposes operational endpoints:
+   - `/` for service confirmation
+   - `/health` for liveness-style checks
+   - `/ready` for readiness-style checks
+   - `/fail` to simulate app failure
+   - `/load` to simulate CPU pressure
+2. Docker packages the API into a lightweight runtime image.
+3. Terraform provisions an ECR repository in AWS.
+4. Docker image is tagged and pushed to ECR.
 
-Day 1 architecture is intentionally simple and focused:
+This creates a practical base for Kubernetes probes, autoscaling, and self-healing behavior in upcoming phases.
 
-- Go API:
-  - Handles HTTP requests
-  - Provides health/readiness signals
-  - Includes controlled chaos endpoints (/fail and /load) for resilience testing
-- Docker container:
-  - Packages the Go binary into a lightweight runtime image
-  - Provides environment consistency across local and future cloud runtimes
+## 📅 Project Progress
 
-Flow summary:
+### Day 1: Application + Container Baseline
 
-1. You run the Go service directly or via Docker.
-2. Clients call API endpoints.
-3. /health reflects healthy or failing state.
-4. /fail toggles the app into failure mode.
-5. /load generates temporary CPU pressure for testing behavior under stress.
+- Built a Go HTTP API.
+- Implemented endpoints: `/`, `/health`, `/ready`, `/fail`, `/load`.
+- Simulated application failure and CPU load.
+- Ran and tested service locally.
+- Containerized the app with Docker.
 
-## API Endpoints
+### Day 2: AWS + Terraform + ECR
 
-| Endpoint | Method | Purpose                                                                 | Typical Response                                                  |
-| -------- | ------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| /        | GET    | Home endpoint to confirm service is running                             | 200 OK, "KubePulse AWS is running"                                |
-| /health  | GET    | Liveness-style check; returns unhealthy after failure mode is activated | 200 OK (healthy) or 500 Internal Server Error (service unhealthy) |
-| /ready   | GET    | Readiness-style check indicating service can receive traffic            | 200 OK, "ready"                                                   |
-| /fail    | GET    | Activates failure mode by setting an internal flag                      | 500 Internal Server Error, "failure mode activated"               |
-| /load    | GET    | Simulates CPU load for 5 seconds via a busy loop                        | 200 OK, "CPU load simulated for 5 seconds"                        |
+- Installed AWS CLI and Terraform.
+- Created Terraform configuration files.
+- Provisioned AWS ECR repository using Terraform.
+- Built Docker image for Day 2.
+- Authenticated Docker against AWS ECR.
+- Tagged and pushed image to ECR.
+- Verified image in AWS Console.
+- Resolved real-world setup and environment issues.
 
-## Run Locally (PowerShell)
+## ⚙️ API Endpoints
 
-### Prerequisites
+| Endpoint  | Method | Purpose                        | Typical Response                            |
+| --------- | ------ | ------------------------------ | ------------------------------------------- |
+| `/`       | GET    | Basic service check            | `200 OK` - KubePulse AWS is running         |
+| `/health` | GET    | Liveness-style health signal   | `200 OK` healthy or `500` service unhealthy |
+| `/ready`  | GET    | Readiness-style traffic signal | `200 OK` ready                              |
+| `/fail`   | GET    | Activates failure mode         | `500` failure mode activated                |
+| `/load`   | GET    | Simulates CPU usage for ~5s    | `200 OK` CPU load simulated                 |
 
-- Go 1.22+
-- Docker Desktop (running)
-- PowerShell
+## 💻 Run Locally (Go)
 
-### 1. Initialize Go module (first time only)
+From the `app` directory:
 
 ```powershell
 go mod init kubepulse
+go run main.go
 ```
 
-What it does:
-
-- Creates go.mod
-- Defines the module name
-- Enables dependency and version management for the Go project
-
-Note:
-
-- This project already has go.mod, so this command is only needed if you start from scratch.
-
-### 2. Run the API directly with Go
-
-```powershell
-go run .\app\main.go
-```
-
-What it does:
-
-- Compiles and runs the application in one step
-- Starts the HTTP server on port 8080
-- Useful for rapid local development before containerization
-
-### 3. Test API endpoints with curl
-
-Open a second PowerShell terminal and run:
+Quick endpoint test examples:
 
 ```powershell
 curl.exe http://localhost:8080/
@@ -110,91 +91,191 @@ curl.exe http://localhost:8080/health
 curl.exe http://localhost:8080/load
 ```
 
-What each test does:
+## 🐳 Docker Usage
 
-- GET / verifies the app is online
-- First GET /health should return healthy
-- GET /ready confirms readiness endpoint behavior
-- GET /fail enables failure mode
-- Second GET /health should now return unhealthy (500)
-- GET /load triggers a 5-second CPU stress simulation
-
-Why curl.exe on Windows:
-
-- In PowerShell, curl may map to Invoke-WebRequest.
-- curl.exe ensures you use the native curl binary syntax consistently.
-
-### 4. Build Docker image
-
-From the app directory:
+From the `app` directory:
 
 ```powershell
-cd .\app
 docker build -t kubepulse:day1 .
+docker run -p 8080:8080 kubepulse:day1
 ```
 
-What it does:
+What this does:
 
-- Uses the Dockerfile to build a multi-stage image
-- Compiles the Go binary in a builder image
-- Copies only the binary into a small Alpine runtime image
-- Tags image as kubepulse:day1
+- Builds a multi-stage image.
+- Runs the service on local port 8080.
 
-### 5. Run Docker container
+## ☁️ Terraform + AWS ECR Setup
+
+From the repository root:
 
 ```powershell
-docker run --name kubepulse-day1 -p 8080:8080 kubepulse:day1
+cd terraform
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply
 ```
 
-What it does:
+Terraform provisions an ECR repository named from `project_name`.
 
-- Starts a container named kubepulse-day1
-- Maps local port 8080 to container port 8080
-- Makes the API accessible at http://localhost:8080
+## 🔐 AWS Configuration
 
-Optional cleanup commands:
+Install tooling:
 
 ```powershell
-docker stop kubepulse-day1
-docker rm kubepulse-day1
+winget install Amazon.AWSCLI
+winget install Hashicorp.Terraform
 ```
 
-## Project Structure
+Configure AWS credentials:
+
+```powershell
+aws configure
+```
+
+Recommended minimum setup:
+
+- Use an IAM user with permissions for ECR and Terraform-managed resources.
+- Set the correct default region (`us-east-1` in this project).
+
+## 📦 Push Docker Image to AWS ECR
+
+Authenticate Docker to ECR:
+
+```powershell
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URL>
+```
+
+Tag and push image:
+
+```powershell
+docker tag kubepulse:day2 <ECR_URL>:day2
+docker push <ECR_URL>:day2
+```
+
+After push, verify the image tag in AWS Console under ECR.
+
+## 🗂️ Project Structure
 
 ```text
 kubepulse-aws/
 |-- README.md
-`-- app/
-	 |-- Dockerfile
-	 |-- go.mod
-	 `-- main.go
+|-- app/
+|   |-- Dockerfile
+|   |-- go.mod
+|   `-- main.go
+`-- terraform/
+      |-- main.tf
+      |-- outputs.tf
+      |-- providers.tf
+      `-- variables.tf
 ```
 
-## What I Learned (Day 1)
+## 🧠 What I Learned
 
-- How to design and expose core operational endpoints (/health and /ready)
-- How to simulate failure conditions in a controlled way for resilience testing
-- How CPU stress behavior can be emulated to test service robustness
-- How to package a Go service with a lightweight multi-stage Docker build
-- How to run and validate a containerized API locally on Windows PowerShell
+- How liveness and readiness endpoints support platform-level reliability.
+- How to package Go workloads with efficient multi-stage Docker builds.
+- How Terraform enables repeatable cloud provisioning.
+- How ECR authentication and tagging work in real workflows.
+- Why region consistency is critical across CLI, Terraform, and AWS Console.
+- How to debug practical environment and tooling issues quickly.
 
-## Next Steps
+## 🚧 Next Steps
 
-Planned evolution for upcoming days:
+1. Deploy KubePulse AWS to Kubernetes (EKS or local cluster first).
+2. Add liveness and readiness probes in deployment manifests.
+3. Add HPA/VPA experiments for load behavior.
+4. Integrate CI/CD with GitHub Actions for build and push automation.
+5. Add observability stack (metrics, logs, alerts).
+6. Implement rollback-safe deployment strategies.
 
-1. AWS foundation:
-   - Prepare target AWS environment for deployment
-   - Define networking and compute strategy
-2. Terraform (Infrastructure as Code):
-   - Provision cloud resources declaratively
-   - Make infrastructure reproducible and version-controlled
-3. Kubernetes deployment:
-   - Deploy KubePulse AWS as pods/services
-   - Add liveness/readiness probes and self-healing behavior
-4. CI/CD with GitHub Actions:
-   - Automate build, test, and container publishing
-   - Automate deployment workflow to cloud environments
+## 🛠️ Troubleshooting & Issues I Faced
+
+- Go not recognized:
+  Fixed by installing Go and updating system `PATH`.
+- Docker daemon not running:
+  Fixed by starting Docker Desktop before build/run.
+- Terraform not recognized:
+  Fixed by installing Terraform via `winget`.
+- AWS credentials missing:
+  Fixed with `aws configure` and valid IAM user keys.
+- Wrong AWS region (`us-east-2` vs `us-east-1`):
+  Fixed by switching region in AWS Console and aligning CLI commands.
+- Nested `terraform` folder created accidentally:
+  Fixed by moving files to the correct directory and removing duplicate folder.
+- PowerShell does not support `touch`:
+  Used `New-Item` for file creation.
+- ECR image not visible:
+  Root cause was wrong region selected in AWS Console.
+
+## 🧾 Real PowerShell Commands Used
+
+### Go
+
+```powershell
+go mod init kubepulse
+go run main.go
+```
+
+### Docker
+
+```powershell
+docker build -t kubepulse:day1 .
+docker run -p 8080:8080 kubepulse:day1
+```
+
+### Git
+
+```powershell
+git init
+git add .
+git commit -m "Day 1 - Go API + Docker"
+git push
+```
+
+### Tool Installation
+
+```powershell
+winget install Amazon.AWSCLI
+winget install Hashicorp.Terraform
+```
+
+### AWS
+
+```powershell
+aws configure
+```
+
+### Terraform
+
+```powershell
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply
+```
+
+### ECR Login and Push
+
+```powershell
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URL>
+docker tag kubepulse:day2 <ECR_URL>:day2
+docker push <ECR_URL>:day2
+```
+
+### Navigation and Cleanup
+
+```powershell
+cd ..
+cd terraform
+pwd
+ls
+Remove-Item -Recurse -Force .\terraform
+```
 
 ---
 
-Day 1 outcome: KubePulse AWS now has a working, testable, containerized service baseline ready for cloud and orchestration integration.
+KubePulse AWS is progressing from a local reliability test service into a cloud-native, production-style platform engineering project. ✅
