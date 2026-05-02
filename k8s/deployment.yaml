@@ -1,0 +1,32 @@
+# apps/v1 is used for Deployment resources.
+apiVersion: apps/v1
+# Deployment manages replica sets and keeps pods in desired state.
+kind: Deployment
+metadata:
+  # Name of this deployment object.
+  name: kubepulse-api
+  # Deploy into the custom namespace created in namespace.yaml.
+  namespace: kubepulse
+spec:
+  # Number of pod replicas to run.
+  replicas: 1
+  selector:
+    # Deployment manages pods that carry this label.
+    matchLabels:
+      app: kubepulse-api
+  template:
+    metadata:
+      # Labels attached to each pod created by this deployment.
+      labels:
+        app: kubepulse-api
+    spec:
+      containers:
+        # Main application container.
+        - name: kubepulse-api
+          # Local image name loaded into Minikube.
+          image: kubepulse:local
+          # Never pull from registry; use local image only.
+          imagePullPolicy: Never
+          ports:
+            # Port exposed by the Go application inside the container.
+            - containerPort: 8080

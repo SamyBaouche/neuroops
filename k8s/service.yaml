@@ -1,0 +1,20 @@
+# v1 is used for core networking resources like Service.
+apiVersion: v1
+# Service provides stable network access to a pod group.
+kind: Service
+metadata:
+  # Name used when calling 'minikube service'.
+  name: kubepulse-service
+  # Service exists in the same namespace as the deployment.
+  namespace: kubepulse
+spec:
+  # NodePort exposes service on a port of each cluster node.
+  type: NodePort
+  # Targets pods with matching app label.
+  selector:
+    app: kubepulse-api
+  ports:
+    # Service listens on 8080 and forwards traffic to pod port 8080.
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
