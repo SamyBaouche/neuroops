@@ -1,3 +1,4 @@
+// package main tells Go this file builds an executable program (not a reusable library).
 package main
 
 import (
@@ -10,6 +11,10 @@ import (
 	// time is used by /load to run a CPU busy loop for a fixed duration.
 	"time"
 )
+
+// KubePulse AWS is a minimal operations-focused API.
+// The endpoints below are intentionally simple so they can be used to
+// practice DevOps workflows like health checks, failure testing, and load testing.
 
 // isFailing is an in-memory flag that controls the health endpoint behavior.
 // false: service is healthy.
