@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,7 +14,6 @@ import (
 
 var baseURL string
 
-var blue = lipgloss.Color("39")
 var purple = lipgloss.Color("99")
 var gray = lipgloss.Color("245")
 var orange = lipgloss.Color("214")
@@ -38,14 +38,23 @@ var warningStyle = lipgloss.NewStyle().
 	Bold(true)
 
 var resultBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	Padding(1, 2).
-	BorderForeground(blue)
+	Padding(0, 0)
 
 type model struct {
 	choices []string
 	cursor  int
 	result  string
+	loading bool
+}
+
+type endpointResultMsg struct {
+	content string
+}
+
+func endpointCmd(path string) tea.Cmd {
+	return func() tea.Msg {
+		return endpointResultMsg{content: callEndpoint(path)}
+	}
 }
 
 func callEndpoint(path string) string {
@@ -56,24 +65,28 @@ func callEndpoint(path string) string {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+	bodyText := strings.TrimSpace(string(body))
+	if bodyText == "" {
+		bodyText = "(empty response body)"
+	}
 
 	return fmt.Sprintf(
-		"%s\n\nendpoint: %s\nstatus: %s\nresponse: %s",
+		"%s\nendpoint: %s\nstatus: %s\n\nresponse:\n%s",
 		successStyle.Render("Neuro Ops response"),
 		path,
 		resp.Status,
-		string(body),
+		bodyText,
 	)
 }
 
 func initialModel() model {
 	return model{
 		choices: []string{
-			"health check",
-			"readiness check",
-			"simulate cpu load",
-			"trigger failure",
-			"exit",
+			"Health check",
+			"Readiness check",
+			"Simulate CPU load",
+			"Trigger failure",
+			"Exit",
 		},
 		result: "waiting for action...",
 	}
@@ -103,26 +116,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 
-		case "enter":
+		case "enter", "ctrl+m":
+			if m.loading {
+				return m, nil
+			}
 
 			switch m.cursor {
 
 			case 0:
-				m.result = callEndpoint("/health")
+				m.loading = true
+				m.result = mutedStyle.Render("Calling /health ...")
+				return m, endpointCmd("/health")
 
 			case 1:
-				m.result = callEndpoint("/ready")
+				m.loading = true
+				m.result = mutedStyle.Render("Calling /ready ...")
+				return m, endpointCmd("/ready")
 
 			case 2:
-				m.result = callEndpoint("/load")
+				m.loading = true
+				m.result = mutedStyle.Render("Calling /load ...")
+				return m, endpointCmd("/load")
 
 			case 3:
-				m.result = callEndpoint("/fail")
+				m.loading = true
+				m.result = mutedStyle.Render("Calling /fail ...")
+				return m, endpointCmd("/fail")
 
 			case 4:
 				return m, tea.Quit
 			}
 		}
+
+	case endpointResultMsg:
+		m.loading = false
+		m.result = msg.content
 	}
 
 	// Keep the cursor index in bounds even if the terminal sends unexpected key sequences.
@@ -155,7 +183,7 @@ func (m model) View() string {
 	s += "\n"
 
 	s += boxLineStyle.Render(
-		"┌─ cloud ───────────────┬─ kubernetes ──────────┬─ ai remediation ───────────┐",
+		"┌─ Cloud ───────────────┬─ Kubernetes ──────────┬─ AI Remediation ───────────┐",
 	) + "\n"
 
 	s += "│ " +
@@ -170,7 +198,7 @@ func (m model) View() string {
 		"└───────────────────────┴───────────────────────┴────────────────────────────┘",
 	) + "\n\n"
 
-	s += "            ai-powered kubernetes observability and remediation\n"
+	s += "            AI-powered Kubernetes observability and remediation\n"
 
 	s += mutedStyle.Render(
 		"             dev · cloud · github.com/SamyBaouche/neuroops",
@@ -181,29 +209,32 @@ func (m model) View() string {
 	) + "\n\n"
 
 	for i, choice := range m.choices {
-
-		cursor := " "
-
 		if m.cursor == i {
-			cursor = ">"
+			s += fmt.Sprintf("%s\n", successStyle.Render("> "+choice))
+			continue
 		}
 
-		s += fmt.Sprintf("%s %s\n", cursor, choice)
+		s += fmt.Sprintf("%s\n", mutedStyle.Render("- "+choice))
 	}
 
 	s += "\n"
 
 	s += mutedStyle.Render(
-		"Use ↑/↓ and Enter. Press q to quit.",
+		"Use up/down and Enter. Press q to quit.",
 	) + "\n"
+
+	if m.loading {
+		s += "\n" + warningStyle.Render("Loading...") + "\n"
+	}
+
+	s += "\n" + resultBoxStyle.Render(successStyle.Render("Result")+"\n\n"+m.result) + "\n"
 
 	return s
 }
 
 func runTUI() {
-
-	// Alt screen prevents redraw noise/flooding in terminals like PowerShell.
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	// Avoid alt screen so PowerShell keeps scrollback and users can scroll output.
+	p := tea.NewProgram(initialModel())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error:", err)
