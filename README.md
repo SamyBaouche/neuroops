@@ -270,9 +270,9 @@ Planned integrations:
 ### 1) Run NeuroOps CLI/TUI
 
 ```powershell
-cd C:\Users\Admin\Desktop\kubepulse-aws\cli-go
+cd C:\Users\Admin\Desktop\neuroops\cli-go
 go build -o neuroops.exe
-.\neuroops.exe tui --url http://127.0.0.1:56227
+.\neuroops.exe tui --url http://127.0.0.1:PORT
 ```
 
 What each command does:
