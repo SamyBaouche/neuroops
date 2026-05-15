@@ -4,15 +4,15 @@ apiVersion: v1
 kind: Service
 metadata:
   # Name used when calling 'minikube service'.
-  name: kubepulse-service
+  name: neuroops-service
   # Service exists in the same namespace as the deployment.
-  namespace: kubepulse
+  namespace: neuroops
 spec:
   # NodePort exposes service on a port of each cluster node.
   type: NodePort
   # Targets pods with matching app label.
   selector:
-    app: kubepulse-api
+    app: neuroops-api
   ports:
     # Service listens on 8080 and forwards traffic to pod port 8080.
     - protocol: TCP

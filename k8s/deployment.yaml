@@ -1,32 +1,42 @@
-# apps/v1 is used for Deployment resources.
 apiVersion: apps/v1
-# Deployment manages replica sets and keeps pods in desired state.
 kind: Deployment
 metadata:
-  # Name of this deployment object.
-  name: kubepulse-api
-  # Deploy into the custom namespace created in namespace.yaml.
-  namespace: kubepulse
+  name: neuroops-api
+  namespace: neuroops
 spec:
-  # Number of pod replicas to run.
   replicas: 1
   selector:
-    # Deployment manages pods that carry this label.
     matchLabels:
-      app: kubepulse-api
+      app: neuroops-api
   template:
     metadata:
-      # Labels attached to each pod created by this deployment.
       labels:
-        app: kubepulse-api
+        app: neuroops-api
     spec:
       containers:
-        # Main application container.
-        - name: kubepulse-api
-          # Local image name loaded into Minikube.
-          image: kubepulse:local
-          # Never pull from registry; use local image only.
+        - name: neuroops-api
+          image: neuroops:local
           imagePullPolicy: Never
           ports:
-            # Port exposed by the Go application inside the container.
             - containerPort: 8080
+
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "500m"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// KubePulse AWS is a minimal operations-focused API.
+// NeuroOps is a minimal operations-focused API.
 // The endpoints below are intentionally simple so they can be used to
 // practice DevOps workflows like health checks, failure testing, and load testing.
 
@@ -55,7 +55,7 @@ func main() {
 	// Load simulation endpoint: keeps CPU busy for a short period.
 	http.HandleFunc("/load", loadHandler)
 
-	log.Println("KubePulse API running on port 8080")
+	log.Println("NeuroOps API running on port 8080")
 
 	// Start the HTTP server and stop the process if startup/runtime fails.
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -64,7 +64,7 @@ func main() {
 // homeHandler handles GET /.
 // It returns a human-readable message confirming the API is online.
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "KubePulse AWS is running")
+	fmt.Fprintln(w, "NeuroOps is running")
 }
 
 // healthHandler handles GET /health.

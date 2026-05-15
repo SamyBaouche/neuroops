@@ -5,14 +5,14 @@ WORKDIR /app
 COPY go.mod ./
 COPY main.go ./
 
-RUN go build -o kubepulse main.go
+RUN go build -o neuroops main.go
 
 FROM alpine:latest
 
 WORKDIR /app
 
-COPY --from=builder /app/kubepulse .
+COPY --from=builder /app/neuroops .
 
 EXPOSE 8080
 
-CMD ["./kubepulse"]
+CMD ["./neuroops"]
