@@ -94,6 +94,8 @@ type model struct {
 	loadingFrame int
 	clusterState string
 	hasResult    bool
+	width        int
+	height       int
 }
 
 func separator() string {
@@ -390,6 +392,8 @@ func initialModel() model {
 		},
 		result:       "Select an operation to analyze platform health, resilience, and observability signals.",
 		clusterState: "HEALTHY",
+		width:        100,
+		height:       40,
 	}
 }
 
@@ -442,6 +446,10 @@ func trimResultForView(result string) string {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -474,7 +482,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter", "ctrl+m":
 			if m.loading {
-				m.result = warningStyle.Render("Operation already running... wait or press Esc to cancel.")
 				return m, nil
 			}
 
@@ -529,83 +536,106 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	logo := `
-███╗   ██╗███████╗██╗   ██╗██████╗  ██████╗      ██████╗ ██████╗ ███████╗
-████╗  ██║██╔════╝██║   ██║██╔══██╗██╔═══██╗    ██╔═══██╗██╔══██╗██╔════╝
-██╔██╗ ██║█████╗  ██║   ██║██████╔╝██║   ██║    ██║   ██║██████╔╝███████╗
-██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║    ██║   ██║██╔═══╝ ╚════██║
-██║ ╚████║███████╗╚██████╔╝██║  ██║╚██████╔╝    ╚██████╔╝██║     ███████║
-╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝
-`
+	fit := func(s string) string {
+		if m.width > 0 {
+			return lipgloss.NewStyle().MaxWidth(m.width).Render(s)
+		}
+		return s
+	}
 
-	s := titleStyle.Render(logo)
-	s += "\n"
-	s += m.statusBar() + "\n\n"
+	renderHeader := func() string {
+		logo := strings.Join([]string{
+			"",
+			"███╗   ██╗███████╗██╗   ██╗██████╗  ██████╗      ██████╗ ██████╗ ███████╗",
+			"████╗  ██║██╔════╝██║   ██║██╔══██╗██╔═══██╗    ██╔═══██╗██╔══██╗██╔════╝",
+			"██╔██╗ ██║█████╗  ██║   ██║██████╔╝██║   ██║    ██║   ██║██████╔╝███████╗",
+			"██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║    ██║   ██║██╔═══╝ ╚════██║",
+			"██║ ╚████║███████╗╚██████╔╝██║  ██║╚██████╔╝    ╚██████╔╝██║     ███████║",
+			"╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝      ╚═════╝ ╚═╝     ╚══════╝",
+		}, "\n")
+		return fit(titleStyle.Render(logo))
+	}
 
-	s += boxLineStyle.Render(
-		"┌─ Cloud ───────────────┬─ Kubernetes ──────────┬─ AI Remediation ───────────┐",
-	) + "\n"
+	renderInfra := func() string {
+		line1 := boxLineStyle.Render("┌─ Cloud ───────────────┬─ Kubernetes ──────────┬─ AI Remediation ───────────┐")
+		line2 := "│ " +
+			successStyle.Render("AWS · ECR · IAM") +
+			"       │ " +
+			successStyle.Render("HPA · probes · SRE") +
+			"      │ " +
+			successStyle.Render("LLM analysis · Bedrock") +
+			"     │"
+		line3 := boxLineStyle.Render("└───────────────────────┴───────────────────────┴────────────────────────────┘")
 
-	s += "│ " +
-		successStyle.Render("AWS · ECR · IAM") +
-		"       │ " +
-		successStyle.Render("HPA · probes · SRE") +
-		"      │ " +
-		successStyle.Render("LLM analysis · Bedrock") +
-		"     │\n"
+		return fit(strings.Join([]string{
+			line1,
+			line2,
+			line3,
+			"",
+			"            AI-powered Kubernetes observability and remediation",
+			mutedStyle.Render("             dev · cloud · github.com/SamyBaouche/neuroops"),
+		}, "\n"))
+	}
 
-	s += boxLineStyle.Render(
-		"└───────────────────────┴───────────────────────┴────────────────────────────┘",
-	) + "\n\n"
-
-	s += "            AI-powered Kubernetes observability and remediation\n"
-	s += mutedStyle.Render("             dev · cloud · github.com/SamyBaouche/neuroops") + "\n\n"
-
-	if !m.hasResult {
-		s += warningStyle.Render("What do you want to inspect ?") + "\n\n"
-
-		for i, choice := range m.choices {
-			if m.cursor == i {
-				s += fmt.Sprintf("%s\n", menuSelectedStyle.Render("> "+choice))
-				continue
-			}
-			s += fmt.Sprintf("%s\n", menuItemStyle.Render("- "+choice))
+	renderMenu := func() string {
+		title := warningStyle.Render("Menu")
+		if m.loading {
+			title = warningStyle.Render("Menu (locked while running request)")
 		}
 
-		s += "\n"
-		s += mutedStyle.Render("Use up/down and Enter. Press q to quit.") + "\n"
-	}
-
-	if m.loading {
-		s += "\n" + warningStyle.Render(m.loadingText()) + "\n"
-	}
-
-	s += "\n" + resultBoxStyle.Render(successStyle.Render("Platform Analysis")+"\n\n"+trimResultForView(m.result)) + "\n"
-
-	if m.hasResult {
-		s += "\n" + warningStyle.Render("Next Action") + "\n\n"
+		items := make([]string, 0, len(m.choices))
 		for i, choice := range m.choices {
 			if m.cursor == i {
-				s += fmt.Sprintf("%s\n", menuSelectedStyle.Render("> "+choice))
+				items = append(items, menuSelectedStyle.Render("> "+choice))
 				continue
 			}
-			s += fmt.Sprintf("%s\n", menuItemStyle.Render("- "+choice))
+			items = append(items, menuItemStyle.Render("- "+choice))
 		}
 
-		s += "\n" + mutedStyle.Render("Choose another option with up/down + Enter, or press q to quit.") + "\n"
+		hint := mutedStyle.Render("Use up/down and Enter. Press q to quit.")
+		if m.hasResult {
+			hint = mutedStyle.Render("Choose another option with up/down + Enter, or press q to quit.")
+		}
+
+		return fit(strings.Join([]string{title, "", strings.Join(items, "\n"), "", hint}, "\n"))
 	}
 
-	return s
+	renderResultPanel := func() string {
+		resultTitle := successStyle.Render("Platform Analysis")
+		body := trimResultForView(m.result)
+		if m.loading {
+			body = warningStyle.Render(m.loadingText())
+		}
+
+		return fit(resultBoxStyle.Render(resultTitle + "\n\n" + body))
+	}
+
+	renderFooter := func() string {
+		footer := "NeuroOps TUI | Purple Ops Dashboard"
+		if m.loading {
+			footer = "NeuroOps TUI | Request in progress"
+		}
+		return fit(mutedStyle.Render(footer))
+	}
+
+	sections := []string{
+		renderHeader(),
+		fit(m.statusBar()),
+		renderInfra(),
+		renderMenu(),
+		renderResultPanel(),
+		renderFooter(),
+	}
+
+	return strings.Join(sections, "\n\n")
 }
 
-func runTUI() {
-	// Avoid alt screen so PowerShell keeps scrollback and users can scroll output.
-	p := tea.NewProgram(initialModel())
+func runTUI() error {
+	// Use alternate screen for full-frame redraws and stable dashboard rendering.
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 
-	if _, err := p.Run(); err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
+	_, err := p.Run()
+	return err
 }
 
 func main() {
@@ -625,8 +655,8 @@ func main() {
 	tuiCmd := &cobra.Command{
 		Use:   "tui",
 		Short: "Launch Neuro Ops terminal dashboard",
-		Run: func(cmd *cobra.Command, args []string) {
-			runTUI()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTUI()
 		},
 	}
 
