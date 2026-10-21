@@ -215,7 +215,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "service unhealthy", http.StatusServiceUnavailable)
 		return
 	}
-	fmt.Fprintln(w, "NeuroOps is running")
+	fmt.Fprintln(w, "NeuroOps is running (deployed by Argo CD)")
 }
 
 // healthHandler handles GET /health (liveness probe). Two consecutive
