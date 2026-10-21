@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: neuroops
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SamyBaouche/neuroops.git
+    targetRevision: main
+    path: charts/neuroops
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: neuroops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

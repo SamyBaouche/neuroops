@@ -1,0 +1,104 @@
+# Values used by Argo CD (GitOps). The CI pipeline rewrites image.repository
+# and image.tag on every merge to main, so the cluster always runs the image
+# built from the latest commit.
+image:
+  repository: neuroops
+  tag: local
+  pullPolicy: IfNotPresent
+
+# Needed to pull from private ECR (e.g. the Secret created by the minikube
+# registry-creds addon). Leave empty when using a local image.
+imagePullSecrets: []
+
+# Ignored while the HPA is enabled: the HPA owns the replica count.
+replicaCount: 1
+
+containerPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+  limits:
+    cpu: 500m
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 2
+
+# Readiness fails after 1 check (<=5s) while liveness needs 2 (~10s), so a
+# failing pod is pulled out of the Service before the kubelet restarts it.
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 1
+
+service:
+  type: NodePort
+  port: 8080
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50
+
+# OpenTelemetry traces, exported over OTLP/gRPC to Tempo (monitoring/install.sh).
+tracing:
+  enabled: true
+  otlpEndpoint: http://tempo.monitoring.svc.cluster.local:4317
+
+# The monitoring templates below render only when the Prometheus Operator CRDs
+# (installed by kube-prometheus-stack) exist in the cluster.
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  # kube-prometheus-stack only selects ServiceMonitors/PrometheusRules carrying
+  # its Helm release label by default.
+  labels:
+    release: neuroops-monitoring
+
+prometheusRule:
+  enabled: true
+  labels:
+    release: neuroops-monitoring
+
+slo:
+  # 99.5% of user-facing requests (/ and /load) must not return 5xx.
+  availabilityTarget: 0.995
+  # p99 latency threshold for / in seconds.
+  latencyP99Seconds: 0.2
+
+alerting:
+  slack:
+    # The slack-webhook Secret is synced from Vault (kv/neuroops/slack, key "url");
+    # store the webhook with: SLACK_WEBHOOK_URL=... ./vault/setup.sh
+    enabled: false
+    channel: "#neuroops-alerts"
+    webhookSecret:
+      name: slack-webhook
+      key: url
+
+# Vault is the source of truth for secrets: the Vault Secrets Operator syncs
+# each KV path below into a Kubernetes Secret of the same name and refreshes it
+# on change. Renders only when the VSO CRDs exist (vault/setup.sh installs them).
+vault:
+  enabled: true
+  address: http://vault.vault.svc.cluster.local:8200
+  role: neuroops
+  serviceAccount: neuroops-vault
+  kvMount: kv
+  refreshAfter: 30s
+  secrets:
+    - name: slack-webhook
+      path: neuroops/slack
+
+# Grafana dashboard ConfigMap picked up by the kube-prometheus-stack sidecar.
+dashboard:
+  enabled: true

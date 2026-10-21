@@ -1,0 +1,4 @@
+# Single-binary Tempo. Receives OTLP on 4317 (gRPC) / 4318 (HTTP) and serves
+# queries to Grafana on 3200.
+tempo:
+  retention: 72h

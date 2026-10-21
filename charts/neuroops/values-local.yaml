@@ -1,0 +1,10 @@
+# Local Minikube override: use the image built inside Minikube's Docker daemon.
+#   helm upgrade --install neuroops charts/neuroops -n neuroops --create-namespace -f charts/neuroops/values-local.yaml
+image:
+  repository: neuroops
+  tag: local
+  pullPolicy: Never
+
+# Set to true once monitoring/install.sh has installed Tempo.
+tracing:
+  enabled: false

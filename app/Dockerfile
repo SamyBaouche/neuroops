@@ -1,11 +1,13 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod ./
-COPY main.go ./
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN go build -o neuroops main.go
+COPY *.go ./
+
+RUN CGO_ENABLED=0 go build -o neuroops .
 
 FROM alpine:latest
 

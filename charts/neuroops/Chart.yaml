@@ -1,0 +1,6 @@
+apiVersion: v2
+name: neuroops
+description: NeuroOps Go API with self-healing probes and CPU-based autoscaling
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

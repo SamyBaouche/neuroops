@@ -1,0 +1,32 @@
+{{- if and .Values.alerting.slack.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1alpha1/AlertmanagerConfig") }}
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: {{ include "neuroops.name" . }}-slack
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+spec:
+  route:
+    receiver: slack
+    groupBy: ["alertname", "pod"]
+    groupWait: 10s
+    groupInterval: 1m
+    repeatInterval: 4h
+    matchers:
+      - name: service
+        value: neuroops
+        matchType: "="
+  receivers:
+    - name: slack
+      slackConfigs:
+        - apiURL:
+            name: {{ .Values.alerting.slack.webhookSecret.name }}
+            key: {{ .Values.alerting.slack.webhookSecret.key }}
+          channel: {{ .Values.alerting.slack.channel | quote }}
+          sendResolved: true
+          title: {{ `'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'` }}
+          text: |-
+            {{`{{ range .Alerts }}*{{ .Annotations.summary }}*`}}
+            {{`{{ .Annotations.description }}`}}
+            {{`{{ end }}`}}
+{{- end }}

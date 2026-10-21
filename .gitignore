@@ -4,6 +4,9 @@
 *.tfstate.*
 .terraform.lock.hcl
 
+# Vault unseal key and root token (created by vault/setup.sh)
+vault/.vault-init.json
+
 # Executables
 *.exe
 

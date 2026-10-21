@@ -1,7 +1,0 @@
-# API version for core Kubernetes resources like Namespace.
-apiVersion: v1
-# Declares this object as a Namespace.
-kind: Namespace
-metadata:
-  # Logical boundary used to group NeuroOps resources.
-  name: neuroops

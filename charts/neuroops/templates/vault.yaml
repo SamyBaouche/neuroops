@@ -1,0 +1,55 @@
+{{- if and .Values.vault.enabled (.Capabilities.APIVersions.Has "secrets.hashicorp.com/v1beta1/VaultStaticSecret") }}
+# Identity used only to authenticate to Vault; Vault's Kubernetes auth role
+# binds it to the read-only neuroops-read policy.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.vault.serviceAccount }}
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: vault
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+spec:
+  address: {{ .Values.vault.address }}
+  skipTLSVerify: false
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: neuroops
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+spec:
+  vaultConnectionRef: vault
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: {{ .Values.vault.role }}
+    serviceAccount: {{ .Values.vault.serviceAccount }}
+    audiences:
+      - vault
+{{- range .Values.vault.secrets }}
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "neuroops.labels" $ | nindent 4 }}
+spec:
+  vaultAuthRef: neuroops
+  mount: {{ $.Values.vault.kvMount }}
+  type: kv-v2
+  path: {{ .path }}
+  refreshAfter: {{ $.Values.vault.refreshAfter }}
+  destination:
+    name: {{ .name }}
+    create: true
+{{- end }}
+{{- end }}

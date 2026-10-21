@@ -1,0 +1,120 @@
+{{- if and .Values.prometheusRule.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PrometheusRule") }}
+{{- $ns := .Release.Namespace }}
+{{- $app := include "neuroops.name" . }}
+{{- $target := printf "%.1f" (mulf 100.0 .Values.slo.availabilityTarget) }}
+{{- $budget := subf 1.0 .Values.slo.availabilityTarget }}
+{{- /* Multi-window burn-rate thresholds from the Google SRE workbook:
+       14.4x burns 2% of a 30-day budget in 1h, 6x burns 5% in 6h. */}}
+{{- $fastBurn := printf "%.4f" (mulf 14.4 $budget) }}
+{{- $slowBurn := printf "%.4f" (mulf 6.0 $budget) }}
+{{- $sli := printf "namespace=%q,route=~\"/|/load\"" $ns }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $app }}
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: neuroops-slo.rules
+      interval: 30s
+      rules:
+        {{- range $window := list "5m" "30m" "1h" "6h" }}
+        - record: neuroops:sli_error_ratio:rate{{ $window }}
+          expr: |
+            (sum(rate(neuroops_http_requests_total{ {{- $sli }},code=~"5.."}[{{ $window }}])) or vector(0))
+            /
+            sum(rate(neuroops_http_requests_total{ {{- $sli -}} }[{{ $window }}]))
+          labels:
+            namespace: {{ $ns }}
+        {{- end }}
+        - record: neuroops:requests:rate1m
+          expr: sum(rate(neuroops_http_requests_total{ {{- $sli -}} }[1m]))
+          labels:
+            namespace: {{ $ns }}
+        - record: neuroops:latency_p99:rate5m
+          expr: histogram_quantile(0.99, sum by (le) (rate(neuroops_http_request_duration_seconds_bucket{namespace="{{ $ns }}",route="/"}[5m])))
+          labels:
+            namespace: {{ $ns }}
+
+    - name: neuroops-alerts
+      rules:
+        - alert: NeuroOpsErrorBudgetFastBurn
+          expr: |
+            neuroops:sli_error_ratio:rate1h > {{ $fastBurn }}
+            and
+            neuroops:sli_error_ratio:rate5m > {{ $fastBurn }}
+          for: 2m
+          labels:
+            severity: critical
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: "NeuroOps is burning its {{ $target }}% availability error budget 14.4x too fast"
+            description: {{ `"5xx ratio over the last hour is {{ $value | humanizePercentage }}."` }}
+
+        - alert: NeuroOpsErrorBudgetSlowBurn
+          expr: |
+            neuroops:sli_error_ratio:rate6h > {{ $slowBurn }}
+            and
+            neuroops:sli_error_ratio:rate30m > {{ $slowBurn }}
+          for: 15m
+          labels:
+            severity: warning
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: "NeuroOps is burning its {{ $target }}% availability error budget 6x too fast"
+            description: {{ `"5xx ratio over the last 6 hours is {{ $value | humanizePercentage }}."` }}
+
+        - alert: NeuroOpsHighLatencyP99
+          expr: neuroops:latency_p99:rate5m > {{ .Values.slo.latencyP99Seconds }}
+          for: 5m
+          labels:
+            severity: warning
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: "NeuroOps p99 latency on / is above {{ .Values.slo.latencyP99Seconds }}s"
+            description: {{ `"p99 latency is {{ $value | humanizeDuration }}."` }}
+
+        - alert: NeuroOpsPodRestarted
+          expr: sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace="{{ $ns }}",container="{{ $app }}"}[5m])) > 0
+          labels:
+            severity: warning
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: {{ `"NeuroOps pod {{ $labels.pod }} restarted"` }}
+            description: {{ `"{{ $labels.pod }} restarted {{ $value | humanize }} time(s) in the last 5 minutes, likely after failing its liveness probe."` }}
+
+        - alert: NeuroOpsNoAvailablePods
+          expr: kube_deployment_status_replicas_available{namespace="{{ $ns }}",deployment="{{ $app }}"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: "NeuroOps has no available pods"
+            description: "Every NeuroOps replica is unavailable; the service is down."
+        {{- if .Values.hpa.enabled }}
+
+        - alert: NeuroOpsHPAAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="{{ $ns }}",horizontalpodautoscaler="{{ .Chart.Name }}-hpa"}
+            >=
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="{{ $ns }}",horizontalpodautoscaler="{{ .Chart.Name }}-hpa"}
+          for: 5m
+          labels:
+            severity: warning
+            namespace: {{ $ns }}
+            service: neuroops
+          annotations:
+            summary: "NeuroOps HPA has been at max replicas ({{ .Values.hpa.maxReplicas }}) for 5 minutes"
+            description: "Autoscaling has no headroom left; raise hpa.maxReplicas or CPU limits."
+        {{- end }}
+{{- end }}

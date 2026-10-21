@@ -1,0 +1,18 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neuroops.name" . }}-dashboard
+  labels:
+    {{- include "neuroops.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  neuroops.json: |-
+    {{- .Files.Get "dashboards/neuroops.json"
+        | replace "__NAMESPACE__" .Release.Namespace
+        | replace "__APP__" (include "neuroops.name" .)
+        | replace "__HPA__" (printf "%s-hpa" .Chart.Name)
+        | replace "__SLO_TARGET__" (toString .Values.slo.availabilityTarget)
+        | replace "__LATENCY_P99__" (toString .Values.slo.latencyP99Seconds)
+        | nindent 4 }}
+{{- end }}

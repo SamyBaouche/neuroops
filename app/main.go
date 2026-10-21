@@ -2,124 +2,252 @@
 package main
 
 import (
-	// fmt is used to write simple text responses to HTTP clients.
+	"context"
+	"errors"
 	"fmt"
-	// log is used for startup logging and fatal server errors.
-	"log"
-	// net/http provides the HTTP server, routing, and response utilities.
+	"log/slog"
 	"net/http"
-	// time is used by /load to run a CPU busy loop for a fixed duration.
+	"os"
+	"os/signal"
+	"sync/atomic"
+	"syscall"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
-// NeuroOps is a minimal operations-focused API.
-// The endpoints below are intentionally simple so they can be used to
-// practice DevOps workflows like health checks, failure testing, and load testing.
+// NeuroOps is a small operations-focused API used to exercise Kubernetes
+// reliability patterns: health/readiness probes, failure injection, CPU load,
+// and the three observability signals (metrics, logs, traces).
 
-// isFailing is an in-memory flag that controls the health endpoint behavior.
-// false: service is healthy.
-// true: service is unhealthy.
-//
-// In Kubernetes terms, this value affects liveness-style behavior:
-// - /health can tell the platform the app is no longer healthy.
-// - /ready remains a readiness-style signal (currently always ready on Day 1/2).
-//
-// Note: this is intentionally simple for learning. In production, state is usually
-// managed more safely and often with synchronization primitives for concurrency.
-var isFailing = false
+// isFailing is the simulated failure state. Once /fail is called, the pod
+// serves errors on / and fails both probes until Kubernetes restarts it.
+// atomic.Bool because handlers run concurrently.
+var isFailing atomic.Bool
 
-// main wires all routes and starts the HTTP server on port 8080.
-//
-// This service is intentionally small so you can clearly see cloud-native ideas:
-// - operational endpoints (/health and /ready)
-// - controlled failure simulation (/fail)
-// - controlled load simulation (/load)
-//
-// These patterns are common in Kubernetes workloads where orchestration depends
-// on endpoint signals to make restart and traffic-routing decisions.
-func main() {
-	// Home endpoint: quick confirmation that the process is running.
-	http.HandleFunc("/", homeHandler)
+// registry holds every metric exposed on /metrics.
+var registry = prometheus.NewRegistry()
 
-	// Health endpoint: liveness-style indicator.
-	// When this fails consistently in Kubernetes, pods may be restarted.
-	http.HandleFunc("/health", healthHandler)
+var (
+	// httpRequests counts requests by route, method, and status code.
+	// Error-rate and availability SLOs are computed from this counter.
+	httpRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "neuroops_http_requests_total",
+		Help: "HTTP requests processed, by route, method, and status code.",
+	}, []string{"route", "method", "code"})
 
-	// Readiness endpoint: readiness-style indicator.
-	// When this fails in Kubernetes, traffic can be temporarily stopped to this pod.
-	http.HandleFunc("/ready", readyHandler)
+	// httpDuration records request latency; p50/p99 come from its buckets.
+	httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "neuroops_http_request_duration_seconds",
+		Help:    "HTTP request latency, by route and method.",
+		Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1, 2.5, 5, 10},
+	}, []string{"route", "method"})
 
-	// Failure simulation endpoint: toggles app into failing mode.
-	http.HandleFunc("/fail", failHandler)
+	// failureMode exposes the simulated failure flag (1 = failing).
+	failureMode = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "neuroops_failure_mode",
+		Help: "1 when failure mode has been activated through /fail.",
+	}, func() float64 {
+		if isFailing.Load() {
+			return 1
+		}
+		return 0
+	})
+)
 
-	// Load simulation endpoint: keeps CPU busy for a short period.
-	http.HandleFunc("/load", loadHandler)
-
-	log.Println("NeuroOps API running on port 8080")
-
-	// Start the HTTP server and stop the process if startup/runtime fails.
-	log.Fatal(http.ListenAndServe(":8080", nil))
+func init() {
+	registry.MustRegister(
+		httpRequests,
+		httpDuration,
+		failureMode,
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
 }
 
-// homeHandler handles GET /.
-// It returns a human-readable message confirming the API is online.
+// main sets up logging and tracing, starts the HTTP server on :8080, and
+// shuts down gracefully on SIGTERM so in-flight requests finish during pod
+// restarts and rollouts.
+func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	shutdownTracing, err := setupTracing(ctx)
+	if err != nil {
+		slog.Error("tracing setup failed", "error", err)
+		os.Exit(1)
+	}
+
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           newMux(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		slog.Info("NeuroOps API running", "port", 8080)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("shutting down")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("graceful shutdown failed", "error", err)
+	}
+	if err := shutdownTracing(shutdownCtx); err != nil {
+		slog.Error("tracing shutdown failed", "error", err)
+	}
+}
+
+// setupTracing exports spans over OTLP/gRPC when OTEL_EXPORTER_OTLP_ENDPOINT
+// is set (e.g. Tempo). Without it, tracing is a no-op so the API still runs
+// locally with no collector. Service name comes from OTEL_SERVICE_NAME.
+func setupTracing(ctx context.Context) (func(context.Context) error, error) {
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
+		return func(context.Context) error { return nil }, nil
+	}
+
+	exporter, err := otlptracegrpc.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+	return provider.Shutdown, nil
+}
+
+// newMux wires every route through the same instrumentation chain:
+// tracing span -> structured log -> request counter -> latency histogram.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	handle(mux, "/{$}", "/", homeHandler)
+	handle(mux, "/health", "/health", healthHandler)
+	handle(mux, "/ready", "/ready", readyHandler)
+	handle(mux, "/fail", "/fail", failHandler)
+	handle(mux, "/load", "/load", loadHandler)
+
+	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	return mux
+}
+
+// handle registers pattern on mux with metrics, logs, and tracing. route is
+// the label value used in metrics and logs, kept low-cardinality on purpose.
+func handle(mux *http.ServeMux, pattern, route string, h http.HandlerFunc) {
+	labels := prometheus.Labels{"route": route}
+
+	var handler http.Handler = h
+	handler = promhttp.InstrumentHandlerDuration(httpDuration.MustCurryWith(labels), handler)
+	handler = promhttp.InstrumentHandlerCounter(httpRequests.MustCurryWith(labels), handler)
+	handler = withLogging(route, handler)
+	handler = otelhttp.NewHandler(handler, route)
+
+	mux.Handle(pattern, handler)
+}
+
+// statusRecorder captures the status code written by a handler for logging.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// withLogging emits one JSON log line per request, including the trace ID so
+// Loki log lines can be correlated with Tempo traces. Successful probe calls
+// are skipped because kubelet sends one every 5 seconds per probe.
+func withLogging(route string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+
+		if (route == "/health" || route == "/ready") && rec.status < 400 {
+			return
+		}
+
+		level := slog.LevelInfo
+		if rec.status >= 500 {
+			level = slog.LevelError
+		}
+
+		attrs := []any{
+			"route", route,
+			"method", r.Method,
+			"status", rec.status,
+			"duration_ms", time.Since(start).Milliseconds(),
+		}
+		if sc := trace.SpanContextFromContext(r.Context()); sc.HasTraceID() {
+			attrs = append(attrs, "trace_id", sc.TraceID().String())
+		}
+		slog.Log(r.Context(), level, "request", attrs...)
+	})
+}
+
+// homeHandler handles GET /. It serves errors while failure mode is active,
+// which is what users would see from a broken pod.
 func homeHandler(w http.ResponseWriter, r *http.Request) {
+	if isFailing.Load() {
+		http.Error(w, "service unhealthy", http.StatusServiceUnavailable)
+		return
+	}
 	fmt.Fprintln(w, "NeuroOps is running")
 }
 
-// healthHandler handles GET /health.
-//
-// Why it matters in Kubernetes:
-// - This endpoint is commonly used by liveness probes.
-// - If it reports failures, Kubernetes can restart the container to recover.
-//
-// Behavior in this project:
-// - If isFailing == true, return HTTP 500 (unhealthy).
-// - Otherwise return HTTP 200 (healthy).
+// healthHandler handles GET /health (liveness probe). Two consecutive
+// failures make the kubelet restart the container.
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if isFailing {
+	if isFailing.Load() {
 		http.Error(w, "service unhealthy", http.StatusInternalServerError)
 		return
 	}
-
 	fmt.Fprintln(w, "healthy")
 }
 
-// readyHandler handles GET /ready.
-//
-// Why it matters in Kubernetes:
-// - This endpoint is commonly used by readiness probes.
-// - Readiness controls whether a pod should receive traffic.
-//
-// Current behavior:
-// - Always returns "ready" for this early project phase.
-// - Later versions can include dependency checks (DB, cache, API reachability).
+// readyHandler handles GET /ready (readiness probe). A failing pod reports
+// not-ready so the Service stops routing traffic to it before it restarts.
 func readyHandler(w http.ResponseWriter, r *http.Request) {
+	if isFailing.Load() {
+		http.Error(w, "not ready", http.StatusServiceUnavailable)
+		return
+	}
 	fmt.Fprintln(w, "ready")
 }
 
-// failHandler handles GET /fail.
-//
-// This endpoint simulates an application failure by setting isFailing = true.
-// After this call, /health starts returning HTTP 500, which mimics a broken app
-// state and allows you to test monitoring, alerts, and orchestration behavior.
-//
-// Returning HTTP 500 here makes the failure activation explicit to callers.
+// failHandler handles GET /fail. It switches the pod into failure mode until
+// it is restarted, to exercise probes, alerts, and recovery.
 func failHandler(w http.ResponseWriter, r *http.Request) {
-	isFailing = true
+	isFailing.Store(true)
+	slog.Warn("failure mode activated")
 	http.Error(w, "failure mode activated", http.StatusInternalServerError)
 }
 
-// loadHandler handles GET /load.
-//
-// This endpoint simulates temporary CPU pressure by running a busy loop for
-// around 5 seconds. The repeated arithmetic operation is intentionally useless
-// work whose purpose is to consume CPU cycles.
-//
-// This helps test:
-// - service responsiveness under load
-// - future autoscaling behavior
-// - how probes behave during higher resource usage
+// loadHandler handles GET /load. It burns CPU for about 5 seconds to trigger
+// HPA scale-up.
 func loadHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
