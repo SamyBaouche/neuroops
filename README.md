@@ -1,873 +1,391 @@
-# NeuroOps 🚀
-
-<div align="center">
-
-## AI-powered Kubernetes observability and remediation platform
-
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](#-technology-stack)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](#-technology-stack)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-Orchestrated-326CE5?logo=kubernetes&logoColor=white)](#-technology-stack)
-[![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)](#-technology-stack)
-[![AWS](https://img.shields.io/badge/AWS-Cloud%20Native-FF9900?logo=amazonaws&logoColor=white)](#-technology-stack)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white)](#-cicd-pipeline)
-[![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white)](#-prometheus--grafana-observability)
-[![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)](#-prometheus--grafana-observability)
-[![Helm](https://img.shields.io/badge/Helm-K8s%20Packages-0F1689?logo=helm&logoColor=white)](#-prometheus--grafana-observability)
-
-</div>
-
----
-
-## 🌍 Vision
-
-NeuroOps started as a Kubernetes self-healing lab and evolved into a production-oriented, AI-native platform engineering project.
-
-The mission is simple and ambitious:
-
-- ⚡ detect operational risk early,
-- 🧠 explain incidents with AI-assisted reasoning,
-- 🛠️ recommend (and later automate) safe remediation,
-- ☁️ run cloud-native workloads with real SRE patterns.
-
-This repository showcases platform engineering maturity across reliability controls, autoscaling, deployment automation, observability workflows, and AI-driven operations direction.
-
----
-
-## 🎯 Project Goals
-
-- Build a resilient Kubernetes-ready service with health and readiness semantics.
-- Operate workload behavior under stress using controlled failure and load simulation.
-- Apply cloud-native deployment practices with Docker, Kubernetes, and Infrastructure as Code.
-- Provide an operator-first CLI/TUI workflow for fast diagnosis from the terminal.
-- Implement delivery automation with CI/CD and secure secret handling.
-- Evolve toward AI incident analysis and AI remediation loops.
-
----
-
-## 📅 Project Progress
-
-### Day 1
-
-- Go API, operational endpoints, and local runtime baseline.
-
-### Day 2
-
-- Docker packaging and image lifecycle fundamentals.
-
-### Day 3
-
-- Kubernetes deployment, service exposure, and recovery debugging.
-
-### Day 4
-
-- Probe-first resiliency patterns (`livenessProbe`, `readinessProbe`).
-
-### Day 5
-
-- HPA autoscaling and operator UX via Cobra CLI + Bubble Tea TUI.
-
-### CI/CD Automation
-
-- GitHub Actions CI/CD with test/build/publish automation.
-
-### Prometheus + Grafana Observability
-
-- Prometheus + Grafana monitoring stack with Helm on Minikube.
-
----
-
-## 🧱 Core Capabilities
-
-### ✅ Kubernetes Self-Healing
-
-NeuroOps uses Kubernetes-native resilience patterns:
-
-- `livenessProbe` checks if the container should be restarted.
-- `readinessProbe` checks if the pod is ready to receive traffic.
-- automatic pod restart protects service continuity.
-- self-healing behavior improves production resilience.
-
-Why it matters:
-
-- Prevents traffic from reaching unhealthy pods.
-- Enables autonomous restart for failed app states.
-- Reduces MTTR through platform-level recovery.
-
-How Kubernetes reacts:
-
-- Failed liveness probe: kubelet restarts container.
-- Failed readiness probe: pod is removed from service endpoints.
-- Recovery: pod rejoins traffic only when healthy and ready.
-
-### ✅ HPA Auto-Scaling
-
-NeuroOps demonstrates dynamic scaling with `metrics-server` + HPA:
-
-- monitors CPU utilization,
-- scales replica counts based on workload pressure,
-- supports elastic workloads.
-
-Example scaling behavior:
-
-- normal traffic: `1 pod`
-- CPU spike: `1 -> 5 pods`
-- traffic normalization: scale down automatically
-
-Why scaling matters:
-
-- absorbs burst traffic safely,
-- improves availability under variable load,
-- optimizes cost/performance balance.
-
-### ✅ Cobra CLI
-
-Cobra powers production-style terminal operations:
-
-- command-driven infrastructure workflow,
-- repeatable operator actions,
-- clean and scriptable UX for platform tasks.
-
-### ✅ Bubble Tea TUI
-
-Bubble Tea provides an interactive terminal dashboard for operations:
-
-- service health checks,
-- readiness checks,
-- CPU load simulation,
-- failure simulation.
-
-Why it matters:
-
-- improves developer/operator feedback loop,
-- enables fast diagnostics without leaving terminal context,
-- offers a modern CLI experience for SRE workflows.
-
-### ✅ AWS Integration
-
-NeuroOps is cloud-deployment ready with AWS patterns:
-
-- Amazon ECR for container image registry,
-- IAM for identity and least-privilege access,
-- VPC and Security Groups for network boundary control,
-- KMS for encryption key management and secrets posture.
-
-Why it matters:
-
-- enterprise-grade deployment path,
-- secure supply chain and runtime foundation,
-- production-friendly governance model.
-
-### ✅ Terraform Infrastructure as Code
-
-Terraform enables:
-
-- reproducible infrastructure,
-- versioned provisioning,
-- automated cloud resource lifecycle.
-
-Why it matters:
-
-- eliminates manual configuration drift,
-- improves auditability,
-- standardizes environment creation.
-
-### ✅ Docker
-
-Docker provides:
-
-- consistent runtime packaging,
-- local-to-cloud portability,
-- immutable deployable artifacts.
-
-Why it matters:
-
-- environment parity across dev/test/prod,
-- faster release reliability,
-- simpler Kubernetes deployment flow.
-
-### ✅ GitHub Actions CI/CD
-
-NeuroOps CI/CD supports:
-
-- automated build validation,
-- Go test execution,
-- container build and ECR push,
-- repeatable delivery gates.
-
-Why it matters:
-
-- faster and safer releases,
-- reduced manual deployment risk,
-- measurable engineering velocity.
-
-### ✅ Observability Stack
-
-NeuroOps includes a production-style observability baseline:
-
-- Prometheus for metrics collection,
-- Grafana dashboards for visualization,
-- Kubernetes namespace and pod-level monitoring,
-- CPU and memory telemetry for scaling analysis.
-
----
-
-## 🧠 Platform Architecture
-
-```text
-Developer -> Cobra CLI / Bubble Tea TUI
-            |
-            v
-        NeuroOps API (Go)
-            |
-            +--> Health/Ready/Fail/Load endpoints
-            |
-            v
-      Docker Image Build
-            |
-            v
-  GitHub Actions CI/CD Pipeline
-            |
-            +--> Terraform (IaC) -> AWS Resources (ECR/IAM/Network/Security)
-            |
-            v
-       Kubernetes Cluster
-            |
-            +--> Probes (self-healing)
-            +--> HPA (auto-scaling)
-            +--> Prometheus metrics
-            +--> Grafana dashboards
-            +--> Future AI analysis/remediation loop
+# NeuroOps
+
+A self-healing, autoscaling, SLO-monitored Go service on Kubernetes — failures injected under load, measured, diagnosed, and fixed.
+
+[![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](app/go.mod)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Minikube-326CE5?logo=kubernetes&logoColor=white)](charts/neuroops)
+[![Helm](https://img.shields.io/badge/Helm-chart-0F1689?logo=helm&logoColor=white)](charts/neuroops/Chart.yaml)
+[![Prometheus](https://img.shields.io/badge/Prometheus-SLO%20alerts-E6522C?logo=prometheus&logoColor=white)](charts/neuroops/templates/prometheusrule.yaml)
+[![Vault](https://img.shields.io/badge/Vault-secrets-000000?logo=vault&logoColor=FFEC6E)](vault/setup.sh)
+
+Personal platform project by [Samy Baouche](https://github.com/SamyBaouche). The numbers below were measured on a local Minikube cluster (Docker driver, 4 CPU, 8 GB) on an Apple Silicon Mac, with 100 concurrent k6 clients sending `GET /` through `minikube service`. They are not a production SLO report.
+
+**Run and measured:** Helm install of the chart, Prometheus / Grafana / Loki / Tempo, failure injection under k6 load, HPA scale-up, and the alert path Alertmanager → Slack with the webhook synced from Vault.
+
+**Written, not yet exercised:** GitOps. GitHub Actions can push the image to Amazon ECR and commit the new tag into `charts/neuroops/values.yaml`; `argocd/application.yaml` would sync that commit. That path has not been run end to end. The measurements used a local image (`neuroops:local`) installed with Helm.
+
+## Results at a glance
+
+Same cluster and client shape for every row: Minikube on Apple Silicon, Docker driver, 4 CPU, 8 GB, 100 k6 VUs, `GET /`, via the `minikube service` tunnel.
+
+| Run | What changed | Requests | Error rate | Availability | p99 | Notes |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Baseline, 2 min, 2 replicas, no failures | — | 2,006,660 | 0.00% | 100% | 31.9 ms | ~16,700 req/s, p50 4.25 ms, p95 14.6 ms |
+| Failure injection, 6 min | `readinessProbe.periodSeconds: 5` | 4,423,709 | 3.56% | 96.44% | 46.1 ms | 99.5% SLO missed |
+| Failure injection, 6 min, 10 failures | `readinessProbe.periodSeconds: 1` | 2,677,076 | 2.22% | 97.78% | 84.4 ms | 10/10 recovered with no manual restart. Time to Ready: avg 19.1 s, min 11.8 s, p95 26.1 s |
+
+Later runs sat around 6–7k req/s. The laptop and the tunnel were saturated after about an hour of tests, so that drop is not a regression in the service.
+
+Autoscaling, same machine: the HPA scaled from 2 to 5 pods under CPU load (target 50%). `NeuroOpsHPAAtMaxReplicas` fired after 5 minutes at `maxReplicas: 5`.
+
+The 99.5% availability SLO was **not** met during either failure run. Burn-rate alerts stayed quiet on purpose: 3.56% is under the fast-burn threshold of 14.4 × 0.5% = 7.2%.
+
+![NeuroOps Grafana dashboard during a load window: about 9.7k req/s on the hour stat, p99 4.95 ms, 5 available pods, 5 restarts, and the HPA replica series climbing to 5. The 5xx ratio in this frame is flat at 0; the failure-injection error rates are in the table above, not in these tiles.](docs/images/grafana-dashboard.png)
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph exercised["Exercised on Minikube"]
+    helm[Helm install<br/>neuroops:local]
+    k8s[Deployment, Service, HPA]
+    alloy[Grafana Alloy]
+    otel[OTLP from the API]
+    prom[Prometheus]
+    loki[Loki]
+    tempo[Tempo]
+    graf[Grafana]
+    am[Alertmanager]
+    slack[Slack #neuroops-alerts]
+    vault[Vault KV]
+    vso[Vault Secrets Operator]
+    secret[Secret slack-webhook]
+    helm --> k8s
+    k8s --> prom
+    k8s --> alloy --> loki
+    k8s --> otel --> tempo
+    prom --> graf
+    loki --> graf
+    tempo --> graf
+    prom --> am --> slack
+    vault --> vso --> secret --> am
+  end
+
+  subgraph gitops["Written, not yet exercised"]
+    gha[GitHub Actions<br/>test, build, push]
+    ecr[Amazon ECR<br/>SHA + latest]
+    values[Commit SHA into values.yaml]
+    argo[Argo CD auto-sync]
+    gha --> ecr
+    gha --> values --> argo
+    ecr -.-> argo
+  end
+
+  argo -.-> k8s
 ```
 
-Architecture principles:
+The dotted Argo CD edge is the intended delivery path. The cluster that produced the table was installed with Helm and `imagePullPolicy: Never`.
 
-- reliability-first workload design,
-- platform automation over manual ops,
-- observable systems with AI-driven next steps,
-- safe remediation before full autonomy.
+## What it demonstrates
 
----
+- Self-healing: `/fail` makes `/health` return 500 and `/ready` return 503. Readiness removes the pod from the Service; liveness restarts it. 10/10 injected failures recovered with no kubectl intervention.
+- Autoscaling: HPA from 2 to 5 pods at 50% CPU, then a real `NeuroOpsHPAAtMaxReplicas` warning because 5 was the cap.
+- SLO burn-rate alerting: multi-window rules (14.4× on 1h and 5m, 6× on 6h and 30m) instead of a single static 5xx threshold.
+- Observability: Prometheus metrics, JSON logs in Loki, OpenTelemetry traces in Tempo. Each request log carries `trace_id`, and Grafana is configured to link that field to Tempo.
+- Secrets: the Slack webhook lives in Vault. The Vault Secrets Operator syncs it into a Kubernetes Secret. Alertmanager reads that Secret.
+- GitOps design: chart + Argo CD Application + a CI job that bumps the image tag. Not yet exercised.
 
-## 🧰 Technology Stack
+## Reliability experiment
 
-| Technology          | Purpose                                                     | Why It Matters                                                          |
-| ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Go                  | Backend API and operational endpoints                       | High performance, simplicity, strong cloud-native ecosystem             |
-| Docker              | Build and package immutable artifacts                       | Reliable portability across local and cloud runtimes                    |
-| Kubernetes          | Workload orchestration and self-healing                     | Production-grade scheduling, recovery, and service resilience           |
-| Terraform           | Infrastructure as Code provisioning                         | Reproducible and auditable cloud automation                             |
-| AWS                 | Cloud infrastructure foundation                             | Enterprise-ready networking, security, and managed services             |
-| GitHub Actions      | CI/CD automation                                            | Consistent build/test/push workflow with production-style repeatability |
-| Cobra               | Operational CLI framework                                   | Structured command UX for platform tasks                                |
-| Bubble Tea          | Interactive TUI framework                                   | Fast incident triage with modern terminal ergonomics                    |
-| Helm                | Kubernetes package manager                                  | Standardized, fast installation of complex monitoring stacks            |
-| Prometheus          | Metrics collection and scraping                             | SRE-grade telemetry for pods, workloads, and cluster behavior           |
-| Grafana             | Metrics visualization dashboards                            | Real-time insight into CPU/memory trends and scaling behavior           |
-| Observability Stack | Monitoring foundation (Prometheus + Grafana + kube metrics) | Makes platform behavior visible and measurable                          |
-| Monitoring Stack    | Namespace-level and service-level monitoring workflows      | Supports troubleshooting and performance optimization                   |
-| LLM APIs            | AI incident analysis and guidance (planned)                 | Faster root-cause understanding and remediation support                 |
-| AWS Bedrock         | Managed enterprise LLM access (planned)                     | Secure, scalable AI integration for ops workflows                       |
+### Hypothesis
 
----
+With 2 replicas, a pod that fails `/ready` is removed from the Service before the kubelet restarts it, so user-facing `GET /` stays inside a 99.5% availability SLO while k6 runs.
 
-## 🔁 CI/CD Pipeline
+### Method
 
-NeuroOps uses automated CI/CD with GitHub Actions to move delivery from manual steps to production-style automation.
+1. Two replicas (the chart default is `hpa.minReplicas: 1`; it was raised so one restart was not a total outage).
+2. `k6 run` with 100 VUs against `GET /` for 6 minutes (`loadtest/traffic.js`).
+3. In another terminal, `scripts/inject-failures.sh` picked a random Running pod every 30 seconds and called `GET /fail` from inside the pod.
+4. k6 `http_req_failed` is the error rate. Availability is 1 minus that rate. The script timed container restart and Ready.
 
-What was implemented:
+`/fail` flips an in-memory flag. After that, `/` and `/ready` return 503 and `/health` returns 500 until the process is replaced.
 
-- GitHub Actions workflow for CI/CD lifecycle,
-- automated Go testing,
-- Docker image build automation,
-- automated AWS ECR push,
-- secure credential injection through GitHub Secrets,
-- repeatable delivery pipeline behavior.
+### Results
 
-Workflow location:
+| | Before (`periodSeconds: 5`) | After (`periodSeconds: 1`) |
+| --- | --- | --- |
+| Requests | 4,423,709 | 2,677,076 |
+| Errors | 3.56% | 2.22% |
+| Availability | 96.44% | 97.78% |
+| p99 | 46.1 ms | 84.4 ms |
+| Recoveries | — | 10/10, no manual restart |
+| Time to Ready | — | avg 19.1 s, min 11.8 s, p95 26.1 s |
 
-- `.github/workflows/ci-cd.yml`
+Error rate dropped by about 38% relative to the first run (3.56% → 2.22%). The SLO was still missed. p99 was worse on the second run; throughput on later runs was also lower (~6–7k req/s versus ~16,700 on the fresh baseline) because the laptop and the tunnel were saturated.
 
-Why CI/CD matters:
+### Root cause
 
-- reliability: every push is validated by the same checks,
-- repeatability: delivery process becomes deterministic,
-- automation: reduces manual deployment errors,
-- DevOps workflow maturity: integrates code quality and release flow.
+The process returns 503 as soon as `/fail` is called. With `periodSeconds: 5`, the Endpoints object was only updated on that interval, so the Service kept sending traffic to the broken pod for up to 5 seconds. At this request rate that was on the order of one fifth of in-flight traffic, which is enough to miss a 0.5% error budget.
 
-GitHub Secrets used:
+Burn-rate alerts did not fire. A 3.56% error ratio does not cross 7.2% (14.4 × the 0.5% budget) on both the 1h and 5m windows. The page would fire for a fast, severe burn, not for this probe-shaped leak. `NeuroOpsPodRestarted` did fire, and it reached Slack.
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_ACCOUNT_ID`
+### Fix
 
-Security note:
+`readinessProbe.periodSeconds` went from 5 to 1 in `charts/neuroops/values.yaml`. `failureThreshold` stays 1, so one failed check removes the pod. Liveness stays at 5 seconds × 2 failures, so the restart still happens about 10 seconds after the probe starts failing, after the pod is already out of the Service.
 
-- GitHub only shows secret names in repository settings and hides secret values to protect credentials.
+### Next hypothesis (not verified)
 
-PowerShell commands used to create workflow structure:
+k6 reuses keep-alive connections. kube-proxy only picks a backend for a **new** connection, so an existing connection stays pinned to the failing pod until that container restarts. That would explain why a 1-second readiness period still left 2.22% errors.
 
-```powershell
-cd C:\Users\Admin\Desktop\kubepulse-aws
-mkdir .github
-cd .github
-mkdir workflows
-cd workflows
-notepad ci-cd.yml
-```
+Planned check: send `Connection: close` on 503 responses, then run the same 6-minute, 10-failure test again. Not implemented, not measured.
 
-Command explanations:
+## Screenshots
 
-- `cd ...kubepulse-aws`: go to project root.
-- `mkdir .github`: create GitHub configuration directory.
-- `mkdir workflows`: create workflow directory recognized by GitHub Actions.
-- `notepad ci-cd.yml`: create/edit CI/CD pipeline YAML file.
+![Grafana alert rules for NeuroOps: fast and slow error-budget burn, p99 latency, pod restart, no available pods, and HPA at max replicas, plus the recording rules behind them. In this frame every rule is Normal.](docs/images/alert-rules.png)
 
----
+The rules are loaded from the PrometheusRule in the chart. This frame is the quiet state. The firing path is the Slack capture below.
 
-## 🔄 GitOps with Helm + Argo CD
+![Slack channel #neuroops-alerts receiving NeuroOpsPodRestarted for pods that failed the liveness probe, and NeuroOpsHPAAtMaxReplicas after 5 minutes at 5 replicas.](docs/images/slack-alerts.png)
 
-Kubernetes resources are packaged as a Helm chart in `charts/neuroops` and deployed by Argo CD from Git.
+This is the path that was actually run: injected failure → liveness restart → Prometheus rule → Alertmanager → Slack webhook, with the webhook Secret synced from Vault by the Vault Secrets Operator.
 
-Delivery flow:
+![Loki panel showing a JSON request log: route /, GET, status 200, duration_ms, and a trace_id.](docs/images/loki-logs.png)
 
-```text
-merge to main
-  -> GitHub Actions: go test, go build, docker build, push to ECR (tag = commit SHA)
-  -> gitops-update job: writes the ECR repository + SHA into charts/neuroops/values.yaml and commits it
-  -> Argo CD detects the commit and syncs the chart into the neuroops namespace
-```
+Alloy ships container logs to Loki. The API logs one JSON line per request and skips healthy probe calls. Grafana's Loki datasource maps `trace_id` to the Tempo datasource. There is no Tempo screenshot in this repo.
 
-Argo CD runs with `automated` sync, `prune`, and `selfHeal`: manual `kubectl edit` changes are reverted to what Git declares.
+The HPA scale-up (the replica series reaching 5) is in the hero dashboard above, not a separate image. `docs/images/` has no `hpa-scaling.png` and no `tempo-trace.png`.
 
-Install Argo CD and register the app:
+## Design decisions
 
-```powershell
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
-kubectl apply -f argocd/application.yaml
-```
+**Readiness fails before liveness.** Readiness period is 1 second with `failureThreshold: 1`. Liveness period is 5 seconds with `failureThreshold: 2`. The pod leaves the Service on the first failed ready check. The kubelet restarts it only after two failed health checks. Swapping those numbers would restart a pod that is still receiving traffic, or keep a dead pod in the Service for longer.
 
-Open the Argo CD UI:
+**No `replicas` on the Deployment while the HPA is enabled.** `charts/neuroops/templates/deployment.yaml` omits `spec.replicas` when `hpa.enabled` is true. If both the Deployment and the HPA set the replica count, Argo CD (or the next Helm upgrade) resets the Deployment and fights the autoscaler.
 
-```powershell
-kubectl port-forward svc/argocd-server -n argocd 8081:443
-kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | %{[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_))}
-```
+**Multi-window burn rates, not a static 5xx threshold.** The Google SRE workbook fast burn is 14.4× the budget on both 1 hour and 5 minutes (page). The slow burn is 6× on both 6 hours and 30 minutes (ticket). The budget is `1 - 0.995 = 0.005`, so the fast page is 7.2% errors. A static "5xx > 1% for 1 minute" rule would have paged on the probe experiment; the burn-rate rules correctly did not. Recording rules `neuroops:sli_error_ratio:rate{5m,30m,1h,6h}` feed the alerts. The SLI is `neuroops_http_requests_total` for routes `/` and `/load` only, so probe traffic does not dilute it.
 
-- URL: `https://localhost:8081`, username `admin`.
+**CRD-gated templates.** ServiceMonitor, PrometheusRule, AlertmanagerConfig, and the Vault resources render only when the corresponding CRDs are installed. `helm install` works on a cluster that has neither the Prometheus Operator nor the Vault Secrets Operator. A later `helm upgrade`, after `monitoring/install.sh` or `vault/setup.sh`, picks the extra objects up.
 
-Pulling from private ECR on Minikube:
+**Vault Kubernetes auth, read-only.** `vault/setup.sh` enables KV v2 at `kv/`, Kubernetes auth, and policy `neuroops-read` with `read` on `kv/data/neuroops/*` only. The role `neuroops` is bound to ServiceAccount `neuroops/neuroops-vault`. The chart's VaultStaticSecret refreshes every 30 seconds into a Secret of the same name. Audit logs go to stdout so Alloy can ship them to Loki.
 
-```powershell
-minikube addons configure registry-creds
-minikube addons enable registry-creds
-```
+**Image tags are the git SHA, plus `latest`.** The workflow pushes both. Argo CD is pointed at the SHA written into `values.yaml`, not at `latest`. `latest` moves; a SHA does not. This job has not been executed against the cluster yet.
 
-- the addon creates an `awsecr-cred` Secret and refreshes the ECR token; set `imagePullSecrets: [{name: awsecr-cred}]` in `charts/neuroops/values.yaml`.
+## The service
 
-Chart values:
+Go 1.26 module in `app/`. One process, port 8080.
 
-| Value                                | Default            | Purpose                                 |
-| ------------------------------------ | ------------------ | --------------------------------------- |
-| `image.repository` / `image.tag`     | set by CI          | Image deployed by Argo CD               |
-| `resources.requests.cpu` / `limits`  | `100m` / `500m`    | Scheduling baseline and CPU cap         |
-| `hpa.minReplicas` / `maxReplicas`    | `1` / `5`          | Autoscaling bounds                      |
-| `hpa.targetCPUUtilizationPercentage` | `50`               | Scale-up threshold                      |
-| `livenessProbe` / `readinessProbe`   | `/health`, `/ready`| Self-healing and traffic gating         |
+| Method and path | Role | Healthy | After `/fail` |
+| --- | --- | --- | --- |
+| `GET /` | user traffic | 200 `NeuroOps is running` | 503 |
+| `GET /health` | liveness probe | 200 `healthy` | 500 |
+| `GET /ready` | readiness probe | 200 `ready` | 503 |
+| `GET /fail` | latch failure mode until the process is restarted | — | 500 |
+| `GET /load` | ~5 s CPU busy loop, used to trip the HPA | 200 | 200 (the loop still runs) |
+| `GET /metrics` | Prometheus registry | 200 | 200 |
 
----
+`/fail` sets an `atomic.Bool`. Nothing persists it. A restart clears the flag, which is the self-healing behavior under test.
 
-## 📊 Observability: Metrics, Logs, Traces, Alerts, SLOs
+Metrics, all on the chart's own registry:
 
-NeuroOps covers the three observability signals plus SLO-based alerting.
+- `neuroops_http_requests_total{route,method,code}`
+- `neuroops_http_request_duration_seconds` histogram, buckets 5 ms, 10 ms, 25 ms, 50 ms, 100 ms, 200 ms, 500 ms, 1 s, 2.5 s, 5 s, 10 s
+- `neuroops_failure_mode` gauge, 1 after `/fail`
+- default Go and process collectors
 
-| Signal  | Source in the API                                                   | Backend                             |
-| ------- | ------------------------------------------------------------------- | ----------------------------------- |
-| Metrics | `/metrics` (`client_golang`): requests, latency histogram, failure flag | Prometheus (ServiceMonitor)     |
-| Logs    | JSON logs (`log/slog`) with `trace_id`                              | Loki, shipped by Grafana Alloy      |
-| Traces  | OpenTelemetry (`otelhttp`, OTLP/gRPC)                               | Tempo                               |
-| Events  | Kubernetes events (restarts, probe failures, scaling)               | Loki, via Alloy                     |
-| Alerts  | `PrometheusRule` (SLO burn rate, latency, restarts, HPA saturation) | Alertmanager → Slack                |
+Logs are JSON via `log/slog`: one line per request with `route`, `method`, `status`, `duration_ms`, and `trace_id` when a span exists. Healthy `/health` and `/ready` calls are not logged. The kubelet hits both every few seconds.
 
-API metrics:
+Tracing uses `otelhttp` and OTLP/gRPC. It is a no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The chart sets that to `http://tempo.monitoring.svc.cluster.local:4317` when `tracing.enabled` is true, and sets `OTEL_SERVICE_NAME` to `neuroops-api`. `charts/neuroops/values-local.yaml` turns tracing off so the API still starts before Tempo exists.
 
-- `neuroops_http_requests_total{route, method, code}`
-- `neuroops_http_request_duration_seconds{route, method}` (histogram)
-- `neuroops_failure_mode` (1 after `/fail`)
+On SIGINT or SIGTERM the server stops accepting new connections and waits up to 10 seconds for in-flight requests. The same timeout shuts the tracer provider down.
 
-SLOs (configured in `charts/neuroops/values.yaml` under `slo`):
+`app/main_test.go` covers the healthy paths, a 404, failure mode on `/`, `/health`, and `/ready`, and the metric names. CI runs `go test -race ./...`.
 
-- availability: 99.5% of `/` and `/load` requests return non-5xx,
-- latency: p99 on `/` under 200 ms.
+The image is a multi-stage Dockerfile: `golang:1.26-alpine` builder, `CGO_ENABLED=0` static binary, `alpine` runtime, port 8080.
 
-Alerts (`charts/neuroops/templates/prometheusrule.yaml`):
+Chart defaults that match the probes and the HPA:
 
-| Alert                         | Fires when                                                 | Severity |
-| ----------------------------- | ---------------------------------------------------------- | -------- |
-| `NeuroOpsErrorBudgetFastBurn` | 5xx ratio > 14.4x budget over both 1h and 5m               | critical |
-| `NeuroOpsErrorBudgetSlowBurn` | 5xx ratio > 6x budget over both 6h and 30m                 | warning  |
-| `NeuroOpsHighLatencyP99`      | p99 on `/` above 200 ms for 5m                             | warning  |
-| `NeuroOpsPodRestarted`        | a NeuroOps container restarted in the last 5m              | warning  |
-| `NeuroOpsNoAvailablePods`     | 0 available replicas for 1m                                | critical |
-| `NeuroOpsHPAAtMaxReplicas`    | HPA stuck at max replicas for 5m                           | warning  |
+- CPU request `100m`, limit `500m` (`100m` = 0.1 CPU, `500m` = 0.5 CPU)
+- HPA min 1, max 5, CPU target 50% (the experiment raised min to 2)
+- Service type `NodePort`, port 8080, selector `app: neuroops-api`
+- Deployment name `neuroops-api`, HPA name `neuroops-hpa`, namespace `neuroops`
 
-Install the stack (pinned chart versions: kube-prometheus-stack, Loki, Tempo, Alloy):
+## Operator CLI
+
+`cli-go/` is a Cobra CLI and a Bubble Tea TUI. It calls the API. It does not deploy anything.
 
 ```bash
-minikube start --driver=docker
-minikube addons enable metrics-server
-./monitoring/install.sh
+cd cli-go
+go run . health --url "$URL"
+go run . ready --url "$URL"
+go run . load --url "$URL"
+go run . fail --url "$URL"
+go run . tui --url "$URL"
 ```
 
-The NeuroOps chart then adds its own `ServiceMonitor`, `PrometheusRule`, and Grafana dashboard ("NeuroOps — Service Overview"). They only render once the Prometheus Operator CRDs exist, so the chart still installs on a cluster without monitoring.
+`--url` defaults to `http://127.0.0.1:8080`. Commands: `tui`, `health`, `ready`, `load`, `fail`. There is no CLI screenshot in `docs/`.
 
-Enable Slack alerts (the webhook lives in Vault, see [Secrets with HashiCorp Vault](#-secrets-with-hashicorp-vault)):
+## Terraform
+
+`terraform/` creates one resource: `aws_ecr_repository`, name `kubepulse-aws`, region `us-east-1`, `scan_on_push = true`, tag mutability `MUTABLE`. Provider `hashicorp/aws` `~> 6.0`. Output `ecr_repository_url`.
+
+It does not create a VPC, an EKS cluster, IAM roles, or KMS keys.
 
 ```bash
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX ./vault/setup.sh
-# then set alerting.slack.enabled: true in charts/neuroops/values.yaml and push (Argo CD syncs it)
-```
-
-Open Grafana:
-
-```bash
-kubectl port-forward svc/neuroops-monitoring-grafana 3000:80 -n monitoring
-```
-
-Grafana access:
-
-- URL: `http://localhost:3000`
-- Username: `admin`
-- Password: retrieve from Kubernetes secret.
-
-Retrieve Grafana password command:
-
-```powershell
-kubectl get secret neuroops-monitoring-grafana -n monitoring -o jsonpath="{.data.admin-password}" | %{[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_))}
-```
-
-What this command does:
-
-- reads the base64-encoded admin password from the Kubernetes secret,
-- decodes it to UTF-8 text,
-- prints the plain password in PowerShell.
-
-### Measuring reliability (numbers for the README and CV)
-
-Load tests use [k6](https://k6.io) (`brew install k6`). Get the service URL with `minikube service neuroops-service -n neuroops --url`.
-
-Throughput, latency, and availability under 100 concurrent virtual users:
-
-```bash
-k6 run -e BASE_URL=$URL -e VUS=100 -e DURATION=10m \
-  --summary-export=loadtest/results/traffic.json loadtest/traffic.js
-```
-
-- `http_reqs` rate = sustained requests/s, `http_req_duration` p99 = latency, `http_req_failed` = error rate (availability = 1 − rate).
-
-Failure injection with recovery timing (run in a second terminal during the traffic test):
-
-```bash
-INTERVAL=30 OUTPUT=loadtest/results/failures.csv ./scripts/inject-failures.sh 20
-```
-
-- calls `/fail` inside a random pod, then reports seconds until the container restarts and is Ready again (avg / p95 / max).
-- set `hpa.minReplicas: 2` first: with a single replica every restart is an outage by design.
-
-Autoscaling under CPU pressure:
-
-```bash
-k6 run -e BASE_URL=$URL loadtest/autoscale.js
-kubectl get hpa -n neuroops -w
-```
-
-Detection time: compare the injection timestamps in `failures.csv` with the `NeuroOpsPodRestarted` message time in Slack.
-
-Observability note:
-
-- Some Grafana panels can show `No data` on Minikube. This is normal for local clusters with low traffic or short scrape windows.
-
----
-
-## 🔐 Secrets with HashiCorp Vault
-
-Vault is the single source of truth for NeuroOps secrets. Nothing secret is stored in Git, Helm values, or created by hand with `kubectl create secret`.
-
-```text
-Vault KV v2 (kv/neuroops/*)
-  -> Kubernetes auth: ServiceAccount neuroops/neuroops-vault, read-only policy
-  -> Vault Secrets Operator syncs each path into a Kubernetes Secret (refresh every 30s)
-  -> consumers (Alertmanager Slack receiver) read the Secret; changes apply without a redeploy
-```
-
-| Piece                       | Where                                   | Role                                                         |
-| --------------------------- | --------------------------------------- | ------------------------------------------------------------ |
-| Vault server                | `vault/values.yaml`                     | Standalone, file storage, Prometheus metrics                 |
-| Setup script                | `vault/setup.sh`                        | Install, init, unseal, KV engine, Kubernetes auth, policy, audit log |
-| Policy `neuroops-read`      | `vault/setup.sh`                        | `read` on `kv/data/neuroops/*` only (least privilege)        |
-| VaultConnection / VaultAuth / VaultStaticSecret | `charts/neuroops/templates/vault.yaml` | Deployed by Argo CD with the app        |
-| Rotation timing             | `vault/measure-rotation.sh`             | Seconds from a Vault write to the updated Kubernetes Secret  |
-
-Setup (after `./monitoring/install.sh`, so Vault metrics are scraped too):
-
-```bash
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX ./vault/setup.sh
-kubectl get vaultstaticsecret,secret slack-webhook -n neuroops
-```
-
-- re-run `./vault/setup.sh` after a cluster restart to unseal Vault.
-- the unseal key and root token are written to `vault/.vault-init.json` (git-ignored). This is a lab setup: on EKS, use auto-unseal with AWS KMS, revoke the root token, and enable TLS.
-- the Vault audit log goes to stdout, so Alloy ships it to Loki: `{namespace="vault"}` in Grafana.
-
-Measure secret rotation:
-
-```bash
-RUNS=5 ./vault/measure-rotation.sh
-```
-
----
-
-## 🤖 Future AI Features (Strategic Direction)
-
-NeuroOps is evolving into an end-to-end AI-powered Kubernetes observability and remediation platform.
-
-### 🤖 AI Incident Analysis
-
-Planned pipeline:
-
-- collect Kubernetes events,
-- collect pod logs,
-- collect Prometheus metrics,
-- detect anomalies,
-- send incident context to an LLM API,
-- generate root cause analysis,
-- generate remediation suggestions.
-
-### 🤖 AI Remediation Engine
-
-Planned capabilities:
-
-- suggest or trigger safe actions like `kubectl rollout restart`,
-- adjust scaling with policy controls,
-- orchestrate guided remediation playbooks,
-- enforce approval gates for high-risk actions.
-
-### 🤖 AI Observability Layer
-
-Planned integrations:
-
-- Prometheus metric analysis,
-- Kubernetes log analysis,
-- LLM-powered incident summaries,
-- AWS Bedrock/OpenAI integration for analysis quality,
-- anomaly detection and trend forecasting.
-
-Example AI output:
-
-```text
-Incident detected:
-CPU usage exceeded threshold.
-
-AI analysis:
-Potential stress-test activity detected.
-
-Suggested remediation:
-- optimize /load endpoint
-- tune HPA thresholds
-- increase CPU requests
-```
-
----
-
-## ⚙️ PowerShell Commands (End-to-End)
-
-### 1) Current run commands (important)
-
-```powershell
-cd C:\Users\Admin\Desktop\kubepulse-aws\cli-go
-go build -o neuroops.exe
-.\neuroops.exe tui --url http://127.0.0.1:56227
-```
-
-```powershell
-minikube service kubepulse-service -n kubepulse --url
-```
-
-Notes:
-
-- the Minikube URL port is dynamic and can change between restarts,
-- always use `minikube service ... --url` to get the current endpoint.
-
-### 2) Build and run API locally
-
-```powershell
-cd C:\Users\Admin\Desktop\neuroops\app
-go run main.go
-```
-
-- launches the API server for health/readiness/load/failure testing.
-
-### 3) Docker build and test
-
-```powershell
-cd C:\Users\Admin\Desktop\neuroops\app
-docker build -t neuroops:local .
-docker run -p 8080:8080 neuroops:local
-```
-
-- builds a portable image and validates runtime behavior.
-
-### 4) Kubernetes deploy and validate
-
-```powershell
-cd C:\Users\Admin\Desktop\neuroops
-helm upgrade --install neuroops charts/neuroops -n neuroops --create-namespace -f charts/neuroops/values-local.yaml
-kubectl get pods -n neuroops
-kubectl get svc -n neuroops
-```
-
-- installs the Helm chart (Deployment, Service, HPA) with the local `neuroops:local` image and verifies workload/service health.
-- for the GitOps flow with Argo CD, see [GitOps with Helm + Argo CD](#-gitops-with-helm--argo-cd).
-
-### 5) HPA verification
-
-```powershell
-kubectl get hpa -n neuroops
-kubectl top pods -n neuroops
-```
-
-- confirms autoscaling policy and current pod CPU behavior.
-
-### 6) Terraform provisioning flow
-
-```powershell
-cd C:\Users\Admin\Desktop\neuroops\terraform
+cd terraform
 terraform init
-terraform validate
-terraform plan
 terraform apply
 ```
 
-- initializes and provisions cloud resources via IaC.
+## CI and the GitOps design
 
-### 7) ECR login and push
+`.github/workflows/ci-cd.yml` runs on push and pull request to `main`.
 
-```powershell
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URL>
-docker tag neuroops:local <ECR_URL>:latest
-docker push <ECR_URL>:latest
+1. `build-test-push` — checkout, Go from `app/go.mod`, `go test -race`, `go build`, AWS credentials from GitHub Actions secrets, ECR login, `docker build` in `app/`, push the git SHA tag and `latest` to `us-east-1` repository `kubepulse-aws`.
+2. `gitops-update` — only on a push to `main`. `yq` writes `image.repository` and `image.tag` (the full SHA) into `charts/neuroops/values.yaml`, then commits `chore(gitops): deploy <sha> [skip ci]` and pushes. A commit made with `GITHUB_TOKEN` does not start another workflow run.
+
+`argocd/application.yaml` points at this public repo, path `charts/neuroops`, branch `main`, namespace `neuroops`, with automated sync, prune, and self-heal.
+
+None of that has been watched onto a cluster. Two gaps are called out under Lessons and Limitations: the workflow builds a single-architecture image on `ubuntu-latest`, and this Mac's Minikube needs `linux/arm64`.
+
+## Monitoring stack
+
+`monitoring/install.sh` installs pinned charts into namespace `monitoring`:
+
+| Chart | Version | Role |
+| --- | --- | --- |
+| `prometheus-community/kube-prometheus-stack` | 92.3.0 | Prometheus, Alertmanager, Grafana, kube-state-metrics, node-exporter |
+| `grafana/loki` | 7.3.0 | logs, single binary, filesystem, 168 h retention |
+| `grafana/tempo` | 1.24.4 | traces, OTLP 4317/4318, query 3200, 72 h retention |
+| `grafana/alloy` | 1.13.1 | pod logs and Kubernetes events → Loki |
+
+Prometheus is configured with empty ServiceMonitor and rule selectors so it loads objects from any namespace. The chart's ServiceMonitor and PrometheusRule still carry `release: neuroops-monitoring`. Grafana gets Loki and Tempo datasources; the Loki datasource extracts `"trace_id":"..."` and links it to Tempo.
+
+The chart also ships a Grafana dashboard, "NeuroOps — Service Overview", as a ConfigMap labeled `grafana_dashboard: "1"`.
+
+Alerts in `charts/neuroops/templates/prometheusrule.yaml`:
+
+| Alert | Condition | Severity |
+| --- | --- | --- |
+| `NeuroOpsErrorBudgetFastBurn` | error ratio > 14.4× budget on both 1h and 5m, for 2m | critical |
+| `NeuroOpsErrorBudgetSlowBurn` | error ratio > 6× budget on both 6h and 30m, for 15m | warning |
+| `NeuroOpsHighLatencyP99` | p99 of `/` above 200 ms, for 5m | warning |
+| `NeuroOpsPodRestarted` | container restart in the last 5m | warning |
+| `NeuroOpsNoAvailablePods` | 0 available replicas, for 1m | critical |
+| `NeuroOpsHPAAtMaxReplicas` | current replicas ≥ max, for 5m | warning |
+
+Slack is off unless `alerting.slack.enabled` is true. The receiver reads Secret `slack-webhook`, key `url`, channel `#neuroops-alerts`.
+
+## Secrets
+
+```bash
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX ./vault/setup.sh
 ```
 
-- authenticates Docker to ECR and publishes an image artifact.
+The script installs Vault chart `0.34.1` (Vault 2.0.4) and Vault Secrets Operator `1.6.0`, initializes with one unseal key, unseals, and is safe to re-run (a second run only unseals). The unseal key and root token are written to `vault/.vault-init.json`, which is git-ignored.
 
----
+`vault/measure-rotation.sh` times how long a Vault write takes to show up in the Kubernetes Secret. No timing from that script is published here.
 
-## ☸️ Kubernetes Configuration Examples
+Lab settings, not a production Vault: file storage, TLS off inside the cluster, manual unseal, root token still used by the scripts. On AWS the replacement is KMS auto-unseal, TLS, and a revoked root token.
 
-### Deployment probes
+## Repository layout
 
-```yaml
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8080
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  failureThreshold: 2
-
-readinessProbe:
-  httpGet:
-    path: /ready
-    port: 8080
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  failureThreshold: 1
+```text
+app/                  Go API, tests, multi-stage Dockerfile
+cli-go/               Operator CLI and TUI (not the deploy path)
+charts/neuroops/      Helm chart: workload, HPA, SLO rules, dashboard, Vault CRs
+argocd/               Argo CD Application (not yet exercised)
+monitoring/           Pinned Helm values and install.sh for metrics, logs, traces
+vault/                Vault values, setup.sh, rotation timer
+loadtest/             k6: traffic.js (GET /), autoscale.js (GET /load)
+scripts/              inject-failures.sh
+terraform/            ECR repository only
+.github/workflows/    Test, image push, values.yaml tag bump
+docs/images/          Screenshots from the Minikube runs
 ```
 
-In failure mode, `/` and `/ready` return 503 and `/health` returns 500. Readiness fails after one check (≤5 s), which removes the pod from the Service; liveness fails after two (~10 s), which restarts it.
+## Quickstart
 
-### Horizontal Pod Autoscaler
+Minikube on macOS, Apple Silicon, Docker driver. The `minikube service` command opens a tunnel and holds that terminal. Leave it open or k6 talks to a closed port.
 
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: neuroops-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: neuroops-api
-  minReplicas: 1
-  maxReplicas: 5
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 50
+```bash
+minikube start --driver=docker --cpus=4 --memory=8192
+minikube addons enable metrics-server
+
+minikube image build -t neuroops:local app/
+helm upgrade --install neuroops charts/neuroops -n neuroops --create-namespace \
+  -f charts/neuroops/values-local.yaml
+
+./monitoring/install.sh
+# CRDs now exist; upgrade so ServiceMonitor, PrometheusRule, and tracing render.
+helm upgrade neuroops charts/neuroops -n neuroops \
+  -f charts/neuroops/values-local.yaml \
+  --set tracing.enabled=true
+
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX ./vault/setup.sh
+# Second upgrade: Vault CRDs exist, and Alertmanager should page Slack.
+helm upgrade neuroops charts/neuroops -n neuroops \
+  -f charts/neuroops/values-local.yaml \
+  --set tracing.enabled=true \
+  --set alerting.slack.enabled=true \
+  --set hpa.minReplicas=2
 ```
 
----
+Keep `--set` flags from the previous upgrade. Helm replaces the release values; dropping `tracing.enabled` or `values-local.yaml` points the Deployment back at a pullable tag and turns tracing off.
 
-## 🔄 CI/CD & Delivery Engineering
+```bash
+# terminal 1 — leave this running
+minikube service neuroops-service -n neuroops --url
 
-NeuroOps now uses an automated delivery workflow that validates code and prepares deployable artifacts on every change.
-
-Pipeline responsibilities:
-
-- pull request validation (lint/build/test),
-- artifact consistency checks,
-- Docker build and ECR push,
-- deployment-ready handoff to Kubernetes environments.
-
-Workflow file:
-
-- `.github/workflows/ci-cd.yml`
-
-Example workflow shape:
-
-```yaml
-name: neuroops-ci-cd
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-
-jobs:
-  build-test-publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-      - run: go test ./...
-      - run: go build ./...
-      - run: docker build -t neuroops:ci .
+# terminal 2
+k6 run -e BASE_URL="$URL" -e VUS=100 -e DURATION=2m loadtest/traffic.js
+k6 run -e BASE_URL="$URL" -e VUS=100 -e DURATION=6m loadtest/traffic.js
+INTERVAL=30 ./scripts/inject-failures.sh 10
+k6 run -e BASE_URL="$URL" loadtest/autoscale.js
 ```
 
----
+Grafana:
 
-## 📈 Observability Strategy
+```bash
+kubectl port-forward svc/neuroops-monitoring-grafana 3000:80 -n monitoring
+kubectl get secret neuroops-monitoring-grafana -n monitoring \
+  -o jsonpath="{.data.admin-password}" | base64 -d; echo
+```
 
-Current observability model:
+User `admin`, URL `http://localhost:3000`.
 
-- Kubernetes events + pod status for platform signals,
-- endpoint health/readiness for application-state truth,
-- HPA metrics for demand-driven scaling insight,
-- Prometheus scrape-based telemetry,
-- Grafana dashboards for CPU/memory behavior and namespace monitoring,
-- AI roadmap to convert telemetry into actionable remediation guidance.
+Vault UI after a reboot (the pod comes up sealed):
 
-Local environment reality:
+```bash
+./vault/setup.sh
+kubectl port-forward svc/vault 8200:8200 -n vault
+```
 
-- Grafana `No data` panels can appear in Minikube with low traffic and are expected during initial setup.
+## Lessons learned
 
----
+**`read` under `set -e`.** In `scripts/inject-failures.sh`, `read` returns 1 when kubectl's jsonpath has no trailing newline. Combined with `set -euo pipefail` the script exited during the wait loop and printed nothing. The `read` is now `|| true`. The bug hid a failed experiment behind an empty terminal.
 
-## 🧯 Troubleshooting Playbook
+**A green run that injected nothing.** One "after" k6 run reported 0% errors. Restart count was 0. The injector had not reached a pod. A 0% error rate is not evidence unless the script printed `Recovered N/N` and the restart counter moved.
 
-| Symptom                           | Likely Cause                                          | Fast Fix                                                      |
-| --------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------- | ----------------- |
-| `go.mod file not found`           | Wrong working directory                               | `cd` into module folder containing `go.mod`                   |
-| `ImagePullBackOff`                | Image not reachable by cluster                        | Push to registry or load local image into cluster runtime     |
-| Probe failures                    | Endpoint path/port mismatch                           | Verify `/health` and `/ready` routes and container port       |
-| HPA not scaling                   | Missing metrics-server or low load                    | Install metrics-server and generate CPU load                  |
-| `no basic auth credentials`       | ECR login expired/missing                             | Re-run `aws ecr get-login-password ...                        | docker login ...` |
-| Service unreachable               | Pod not ready or selector mismatch                    | Check `kubectl get pods`, labels, and service selectors       |
-| `helm` not recognized             | PowerShell session did not refresh PATH after install | Restart PowerShell and run `helm version` again               |
-| Grafana login failed              | Wrong/old admin password                              | Retrieve current password from Kubernetes secret and retry    |
-| Docker commands fail              | Docker Desktop not running                            | Start Docker Desktop before Minikube, build, or push          |
-| Minikube URL unavailable          | Cluster is stopped                                    | Run `minikube start --driver=docker` and re-check service URL |
-| Grafana panels show `No data`     | Low traffic or fresh scrape cycle                     | Generate load and wait for scrape interval                    |
-| GitHub Secrets values not visible | GitHub masks secret values by design                  | Confirm secret names exist and rerun workflow                 |
+**k6 syntax.** `loadtest/autoscale.js` briefly called `Number__ENV.VUS` (the underscore swallowed the dot). The stages now use `Number(__ENV.VUS || 100)`.
 
----
+**Apple Silicon versus the CI image.** `minikube image build` on this Mac produces `linux/arm64`. The GitHub Actions job runs `docker build` on `ubuntu-latest` with no `--platform`, which is `linux/amd64`. Argo CD cannot pull that image onto this Minikube node until the workflow builds `linux/amd64,linux/arm64` (buildx) or the cluster is amd64. Not changed yet.
 
-## 🖼️ Observability Screenshots
+**The HPA alert was real.** Load against `/load` held the autoscaler at 5 replicas until `NeuroOpsHPAAtMaxReplicas` fired. The chart has no headroom above `maxReplicas: 5`. Raising the max, or the CPU limit, is a capacity decision, not an alert bug.
 
-### Grafana dashboard
+## Limitations
 
-![Grafana dashboard](docs/screenshots/grafana-dashboard.png)
+- One laptop. Minikube, Docker driver, 4 CPU, 8 GB. The tunnel and the machine move the req/s number; the baseline ~16,700 req/s and the later ~6–7k req/s are the same binary on a tired laptop.
+- The 99.5% SLO was missed during failure injection (96.44%, then 97.78%).
+- Vault is a lab server: manual unseal, no TLS, root token still used by `setup.sh` and `measure-rotation.sh`.
+- Terraform creates the ECR repository and nothing else. No VPC, no EKS.
+- GitOps is not demonstrated. No Argo CD sync was watched, and the CI image is not multi-arch.
+- Slack here is an Alertmanager webhook. There are no Slack interactive buttons.
+- `hpa.minReplicas` in git is 1. The failure runs used 2.
+- No published number from `vault/measure-rotation.sh`.
 
-### Kubernetes metrics
+## Roadmap
 
-![Kubernetes metrics](docs/screenshots/kubernetes-metrics.png)
+- On 503, send `Connection: close` so k6 drops the keep-alive connection, then repeat the 10-failure run.
+- Exercise GitOps: multi-arch build, push to ECR, let the values bump land, install Argo CD, confirm the new SHA is the running image.
+- ECR lifecycle policy so untagged and old SHA images do not accumulate. The repository is `MUTABLE` today, including `latest`.
+- AI incident analyst in Go. Alertmanager webhook in, Prometheus query plus Loki lines plus Kubernetes events out, a runbook chosen by alert name (one file per alert, no vector database), then Ollama locally or Amazon Bedrock, then a Slack message. Not started.
+- Anomaly detection in Prometheus: a z-score on latency and error ratio, and `predict_linear` on replica saturation, compared with the existing threshold alerts. Not started.
 
-### HPA scaling
+## Changelog
 
-![HPA scaling](docs/screenshots/hpa-scaling.png)
+**v1.** Go API, Docker, raw manifests under `k8s/` (Deployment, Service, HPA, Namespace), liveness and readiness probes, HPA, a Cobra/Bubble Tea CLI, Terraform for ECR, GitHub Actions build and push, Prometheus and Grafana on Minikube. Load was 100 parallel PowerShell jobs curling `/load`. Those manifests are gone; the chart is the source of truth.
 
-### NeuroOps TUI
+**v2.** Helm chart, k6 (`traffic.js`, `autoscale.js`), `scripts/inject-failures.sh`, `/metrics` and JSON logs and OpenTelemetry, Loki and Alloy, Tempo, SLO burn-rate rules and a Grafana dashboard, Alertmanager to Slack, Vault and the Vault Secrets Operator, Argo CD Application and the CI tag bump. The reliability table in this README is from v2 on Minikube.
 
-![NeuroOps TUI](docs/screenshots/neuroops-tui.png)
+## Author
 
-### GitHub Actions pipeline
-
-![GitHub Actions pipeline](docs/screenshots/github-actions-pipeline.png)
-
----
-
-## 🧑‍💼 Recruiter Impact Highlights
-
-- Designed and implemented a cloud-native platform project from API to orchestration.
-- Demonstrated production reliability controls (probes, self-healing, autoscaling).
-- Added CI/CD automation with secure secret-based cloud delivery.
-- Added observability stack adoption with Prometheus/Grafana and dashboard workflows.
-- Built operator-focused interfaces (CLI/TUI) for practical incident workflows.
-- Applied DevOps and Platform Engineering patterns (Docker, Kubernetes, IaC, CI/CD, monitoring).
-- Established AI-forward architecture for incident analysis and remediation automation.
-
----
-
-## 🧠 Learning Outcomes
-
-- How Kubernetes turns application signals into automated resilience behavior.
-- How autoscaling policies improve stability under variable load.
-- How IaC + CI/CD reduce drift and increase delivery confidence.
-- How Prometheus and Grafana make workload behavior measurable.
-- How local load generation can validate HPA and observability assumptions.
-- How AI can augment SRE decision-making with context-aware recommendations.
-
----
-
-## 🗺️ Roadmap
-
-NeuroOps is evolving into a full AI-powered Kubernetes observability and remediation platform.
-
-### Near-term
-
-- Harden CI/CD with image scanning and release policies.
-- Expand Grafana dashboards for service-level and namespace-level insights.
-- Add richer CLI/TUI diagnostics for operators.
-
-### Mid-term
-
-- Incident analysis pipeline from K8s events, logs, and Prometheus signals.
-- LLM-powered root cause analysis and structured incident summaries.
-- OpenAI/AWS Bedrock integration options for enterprise-safe AI workflows.
-
-### Long-term
-
-- AI remediation suggestions with risk scoring and approval gates.
-- Safe remediation workflows with rollback strategy.
-- Autonomous incident response loops for low-risk events.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-- Open an issue for bugs or feature ideas.
-- Propose improvements through pull requests.
-- Keep reliability, security, and operator UX as first-class priorities.
-
----
-
-## 📜 License
-
-This project is intended for portfolio, learning, and engineering demonstration purposes.
+Samy Baouche — Software Engineering, Concordia University — [github.com/SamyBaouche](https://github.com/SamyBaouche) — [linkedin.com/in/samybaouche](https://www.linkedin.com/in/samybaouche)
