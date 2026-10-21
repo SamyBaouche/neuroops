@@ -3,7 +3,7 @@
 # built from the latest commit.
 image:
   repository: 554448410739.dkr.ecr.us-east-1.amazonaws.com/kubepulse-aws
-  tag: 18160d4fe1a90feb45ae5953b53a56527c972f77
+  tag: 346bc1e056e17e93e9ade839a8d3e18fe14a4ec6
   pullPolicy: IfNotPresent
 # Needed to pull from private ECR (e.g. the Secret created by the minikube
 # registry-creds addon). Leave empty when using a local image.
