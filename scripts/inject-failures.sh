@@ -50,7 +50,7 @@ for i in $(seq 1 "$COUNT"); do
     fi
 
     read -r restarts ready < <(kubectl get pod "$pod" -n "$NAMESPACE" \
-      -o jsonpath='{.status.containerStatuses[0].restartCount} {.status.containerStatuses[0].ready}')
+      -o jsonpath='{.status.containerStatuses[0].restartCount} {.status.containerStatuses[0].ready}') || true
 
     if [[ -z "$restart_s" && "$restarts" -gt "$before" ]]; then
       restart_s=$elapsed

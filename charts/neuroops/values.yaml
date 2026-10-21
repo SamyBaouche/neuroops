@@ -29,14 +29,14 @@ livenessProbe:
   periodSeconds: 5
   failureThreshold: 2
 
-# Readiness fails after 1 check (<=5s) while liveness needs 2 (~10s), so a
+# Readiness fails after 1 check (<=1s) while liveness needs 2 (~10s), so a
 # failing pod is pulled out of the Service before the kubelet restarts it.
 readinessProbe:
   httpGet:
     path: /ready
     port: http
   initialDelaySeconds: 5
-  periodSeconds: 5
+  periodSeconds: 1
   failureThreshold: 1
 
 service:

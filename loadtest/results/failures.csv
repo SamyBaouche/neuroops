@@ -1,0 +1,11 @@
+injection,pod,injected_at,restart_seconds,ready_seconds
+1,neuroops-api-59dc549d9c-597nf,2026-10-21T04:21:04Z,11.941,18.592
+2,neuroops-api-59dc549d9c-j2jr9,2026-10-21T04:21:53Z,11.741,17.730
+3,neuroops-api-59dc549d9c-4zvpd,2026-10-21T04:22:41Z,10.486,15.946
+4,neuroops-api-59dc549d9c-597nf,2026-10-21T04:23:28Z,6.742,12.436
+5,neuroops-api-59dc549d9c-zg567,2026-10-21T04:24:10Z,9.380,15.154
+6,neuroops-api-59dc549d9c-s8xm2,2026-10-21T04:24:56Z,8.763,13.677
+7,neuroops-api-59dc549d9c-597nf,2026-10-21T04:25:40Z,10.038,15.011
+8,neuroops-api-59dc549d9c-4zvpd,2026-10-21T04:26:25Z,9.308,14.857
+9,neuroops-api-59dc549d9c-j2jr9,2026-10-21T04:27:10Z,8.773,14.351
+10,neuroops-api-59dc549d9c-s8xm2,2026-10-21T04:27:55Z,9.423,14.413
