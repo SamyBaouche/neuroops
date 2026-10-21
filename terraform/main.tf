@@ -17,3 +17,16 @@ resource "aws_ecr_repository" "kubepulse" {
     ManagedBy = "Terraform"
   }
 }
+
+# Keep storage bounded: expire the oldest images beyond 30 (multi-arch pushes create several artifacts each).
+resource "aws_ecr_lifecycle_policy" "kubepulse" {
+  repository = aws_ecr_repository.kubepulse.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep only the 30 most recent images"
+      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 30 }
+      action       = { type = "expire" }
+    }]
+  })
+}
