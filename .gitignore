@@ -13,3 +13,20 @@ vault/.vault-init.json
 # OS
 .DS_Store
 Thumbs.db
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/tfplan.binary
+terraform/plan.json
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/tfplan.binary
+terraform/plan.json
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/tfplan.binary
+terraform/plan.json

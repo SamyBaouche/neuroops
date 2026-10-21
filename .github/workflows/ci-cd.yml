@@ -1,82 +1,53 @@
 name: NeuroOps CI/CD
-
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: kubepulse-aws
-
 jobs:
   build-test-push:
-    name: Build, Test and Push Docker Image
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: app/go.mod
           cache-dependency-path: app/go.sum
-
       - name: Test Go API
         working-directory: app
         run: go test -race ./...
-
-      - name: Build Go API
-        working-directory: app
-        run: go build -o neuroops-api .
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Login to AWS ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build Docker image
-        working-directory: app
-        run: docker build -t $ECR_REPOSITORY:${{ github.sha }} .
-
-      - name: Tag Docker image for ECR
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push multi-arch image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker tag $ECR_REPOSITORY:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
-          docker tag $ECR_REPOSITORY:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
-
-      - name: Push Docker image to ECR
-        run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
-
+          docker buildx build app --platform linux/amd64,linux/arm64 \
+            -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -t $REGISTRY/$ECR_REPOSITORY:latest --push
   gitops-update:
-    name: Update Helm image tag for Argo CD
     needs: build-test-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set image repository and tag in values.yaml
+      - uses: actions/checkout@v4
+      - name: Bump image in values.yaml
         run: |
           yq -i '.image.repository = "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}"' charts/neuroops/values.yaml
           yq -i '.image.tag = "${{ github.sha }}"' charts/neuroops/values.yaml
-
-      # Commits pushed with GITHUB_TOKEN do not trigger new workflow runs, so this cannot loop.
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
