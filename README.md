@@ -7,6 +7,7 @@ A small Go API on Kubernetes that restarts itself when it fails, adds pods when 
 [![Helm](https://img.shields.io/badge/Helm-chart-0F1689?logo=helm&logoColor=white)](charts/neuroops/Chart.yaml)
 [![Prometheus](https://img.shields.io/badge/Prometheus-alerts-E6522C?logo=prometheus&logoColor=white)](charts/neuroops/templates/prometheusrule.yaml)
 [![Vault](https://img.shields.io/badge/Vault-secrets-000000?logo=vault&logoColor=FFEC6E)](vault/setup.sh)
+[![CI](https://github.com/SamyBaouche/neuroops/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/SamyBaouche/neuroops/actions/workflows/ci-cd.yml)
 
 Personal project by [Samy Baouche](https://github.com/SamyBaouche). I ran it on Minikube on my Mac (Apple Silicon, Docker driver, 4 CPU, 8 GB), not in production.
 
@@ -25,7 +26,7 @@ The API is in `app/` (Go 1.26, port 8080):
 
 After `/fail`, `/` and `/ready` return 503 and `/health` returns 500. A restart clears that.
 
-Kubernetes checks `/ready` every 1 second. One failure removes the pod from the Service. It checks `/health` every 5 seconds and restarts the container after 2 failures. The Horizontal Pod Autoscaler goes from 1 to 5 pods when CPU stays above 50%. Each pod asks for `100m` CPU and is capped at `500m` (`100m` = 0.1 CPU).
+Kubernetes checks `/ready` every 1 second. One failure removes the pod from the Service. It checks `/health` every 5 seconds and restarts the container after 2 failures. The Horizontal Pod Autoscaler keeps at least 2 pods and scales to 5 when CPU stays above 50%. Each pod asks for `100m` CPU and is capped at `500m` (`100m` = 0.1 CPU).
 
 Prometheus scrapes `/metrics`. Logs are JSON and go to Loki. Traces go to Tempo when tracing is turned on. Grafana shows all of that. Alertmanager posts to Slack. The Slack webhook is stored in Vault, not in Git.
 
@@ -39,7 +40,7 @@ go run . tui --url "$URL"
 
 ## What I measured
 
-100 k6 clients calling `GET /` through `minikube service`. Two replicas for the failure tests (the chart default is 1).
+100 k6 clients calling `GET /` through `minikube service`. The failure tests used 2 replicas. Those runs used a local image, before GitOps was wired up.
 
 | Test | Requests | Errors | Availability | p99 |
 | --- | ---: | ---: | ---: | ---: |
@@ -65,16 +66,39 @@ Under CPU load the autoscaler went from 2 to 5 pods. Slack then got `NeuroOpsHPA
 
 ## How it is deployed
 
-```text
-Helm  ->  Kubernetes (Deployment, Service, HPA)
-              |-> Prometheus, Loki, Tempo  ->  Grafana
-              |-> Alertmanager  ->  Slack
-Vault  ->  Kubernetes Secret (Slack webhook)
+```mermaid
+flowchart LR
+  push[git push] --> test[GitHub Actions<br/>go test -race]
+  test --> image[buildx<br/>linux/amd64 + linux/arm64]
+  image --> ecr[ECR kubepulse-aws<br/>SHA + latest]
+  test --> bump[gitops-update<br/>yq values.yaml]
+  bump --> commit["commit [skip ci]"]
+  commit --> argo[Argo CD<br/>auto-sync, prune, selfHeal]
+  ecr --> pods[Minikube pods]
+  argo --> pods
+  pods --> graf[Prometheus, Loki, Tempo, Grafana]
+  pods --> slack[Alertmanager to Slack]
+  vault[Vault] --> pods
 ```
 
-GitHub Actions can test the Go code, build the Docker image, push it to Amazon ECR, and write the image tag into the Helm values. Argo CD is set up to deploy that commit. I have not run that full path yet. The numbers above come from a local image, `neuroops:local`, installed with Helm.
+Prometheus, Loki, Tempo, and Grafana still run in the cluster. Alertmanager posts to Slack. The webhook comes from Vault.
 
-Terraform only creates the ECR repository (`us-east-1`, scan on push) and a lifecycle rule that keeps the last 30 images. It does not create a VPC or EKS.
+## GitOps delivery (verified)
+
+A push to `main` is the deploy:
+
+1. GitHub Actions runs `go test -race`.
+2. `docker buildx` builds `linux/amd64` and `linux/arm64` and pushes both the commit SHA and `latest` to ECR repository `kubepulse-aws`.
+3. The `gitops-update` job uses `yq` to set `image.repository` and `image.tag` in `charts/neuroops/values.yaml`, then commits `chore(gitops): deploy <sha> [skip ci]`.
+4. Argo CD (`argocd/application.yaml`) syncs that commit on its own (`automated`, `prune`, `selfHeal`) onto Minikube.
+
+I checked this end to end. A commit that changed the root message was running in the pods. The image tag was the commit SHA `346bc1e`. I did not run `kubectl` or `helm` for that deploy. Commit to pods took about 10 minutes: CI about 8 minutes, mostly the arm64 build under QEMU, then Argo CD, which polls Git every 3 minutes.
+
+Git is the source of truth. `charts/neuroops/values.yaml` holds `hpa.minReplicas: 2`, `alerting.slack.enabled: true`, readiness every 1 second, and `imagePullSecrets`. Those are not `--set` flags.
+
+The ECR repository already existed outside Terraform. I brought it into state with `terraform import` and saw 0 drift. Terraform also sets a lifecycle policy that keeps the 30 most recent images. It still does not create a VPC or EKS.
+
+Minikube pulls the private image with the `registry-creds` addon. The chart references the `awsecr-cred` imagePullSecret. The CI user is a dedicated IAM user with only `AmazonEC2ContainerRegistryPowerUser`.
 
 ## Run it locally
 
@@ -96,12 +120,12 @@ helm upgrade neuroops charts/neuroops -n neuroops \
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX ./vault/setup.sh
 helm upgrade neuroops charts/neuroops -n neuroops \
   -f charts/neuroops/values-local.yaml \
-  --set tracing.enabled=true \
-  --set alerting.slack.enabled=true \
-  --set hpa.minReplicas=2
+  --set tracing.enabled=true
 ```
 
-Each `helm upgrade` replaces the previous extra flags. Keep `-f charts/neuroops/values-local.yaml` or the pod will try to pull an image instead of using the local one.
+`hpa.minReplicas`, Slack alerting, the readiness period, and `imagePullSecrets` already live in `charts/neuroops/values.yaml`. Do not pass them with `--set`. Keep `-f charts/neuroops/values-local.yaml` on these local commands or the pod will try to pull the ECR image instead of `neuroops:local`.
+
+Pushing to `main` is the path that updates the cluster through Argo CD. These Helm commands are only for a fully local image.
 
 ```bash
 # terminal 1, leave it open
@@ -123,13 +147,20 @@ kubectl get secret neuroops-monitoring-grafana -n monitoring \
 
 After a reboot Vault is sealed. Run `./vault/setup.sh` again to unseal it. The unseal key is in `vault/.vault-init.json` (not committed).
 
-## Not done yet
+## Lessons learned
 
-- GitOps (ECR + Argo CD) is written but I have not watched a commit deploy itself.
-- The CI image is built on Ubuntu (amd64). My Minikube needs arm64, so that image would not start here until the workflow builds both.
+- This Minikube node is arm64. CI builds both `linux/amd64` and `linux/arm64`. An amd64-only image fails on the node with `exec format error`.
+- The GitOps job pushes a commit to `main`. A later `git push` from my laptop can be rejected. I run `git pull --rebase` before pushing.
+- Right after the first sync, Argo CD showed Degraded because the HPA had no metrics yet. It became Healthy within a minute.
+
+## Limitations
+
+- CI logs in with static IAM access keys. A production setup would use GitHub OIDC and an IAM role, so there are no long-lived keys.
+- `registry-creds` is an unmaintained third-party addon. On EKS I would use IRSA or a node IAM role instead.
+- One local Minikube cluster. There is no staging or production promotion.
 - Vault is a lab install: I unseal it by hand, TLS is off, and the scripts still use the root token.
 - Availability during failures was 96.44%, then 97.78%. The 99.5% target was not reached. I think k6 keeps old connections stuck on the bad pod. I have not tested that yet.
-- No Slack buttons, no AI, no EKS.
+- No Slack buttons, no AI, no EKS. Terraform does not create a VPC or EKS.
 
 ## Layout
 
@@ -142,7 +173,7 @@ vault/          Vault install script
 loadtest/       k6 scripts
 scripts/        injects /fail into a random pod
 terraform/      ECR only
-argocd/         Argo CD app (not used in the test)
+argocd/         Argo CD app that syncs main
 docs/images/    screenshots
 ```
 
